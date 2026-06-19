@@ -13,7 +13,7 @@
     "predist": "node scripts/bump-version.js && node scripts/fetch-ublock.js",
     "dist": "electron-builder --win"
   },
-  "author": "decodingit",
+  "author": "Solace",
   "license": "MIT",
   "devDependencies": {
     "electron": "^42.4.1",
@@ -23,9 +23,9 @@
     "@anthropic-ai/sdk": "^0.104.2"
   },
   "build": {
-    "appId": "com.decodingit.solace",
+    "appId": "com.solace.app",
     "productName": "Solace",
-    "copyright": "Copyright © 2026 decodingit",
+    "copyright": "Copyright © 2026 Solace",
     "directories": {
       "output": "dist",
       "buildResources": "build"

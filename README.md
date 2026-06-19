@@ -94,6 +94,6 @@ solace/
 
 ## License
 
-[MIT](LICENSE) © decodingit. Bundled uBlock Origin is © Raymond Hill and licensed separately under the GPLv3.
+[MIT](LICENSE) © Solace. Bundled uBlock Origin is © Raymond Hill and licensed separately under the GPLv3.
 
 Built with the help of [Claude Code](https://claude.com/claude-code).

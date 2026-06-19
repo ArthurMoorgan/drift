@@ -11,7 +11,7 @@ const { pathToFileURL } = require('url');
 // Fix the app identity to "Solace" so the OS, window title, and userData path are
 // deterministic regardless of how the app is launched (dev, portable, or installed).
 try { app.setName('Solace'); } catch (_) {}
-try { app.setAppUserModelId('com.decodingit.solace'); } catch (_) {}
+try { app.setAppUserModelId('com.solace.app'); } catch (_) {}
 
 // Window/taskbar icon (bundled with the app so it shows in the portable build too).
 const APP_ICON = path.join(__dirname, 'src', 'icon.png');
