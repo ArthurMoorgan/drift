@@ -6,12 +6,18 @@ Solace is a polished, liquid-glass desktop web browser built on **Electron** wit
 
 
 # Here are a few screenshots from the browser:
-
+The basic light theme:
 <img width="1320" height="840" alt="newtab-light" src="https://github.com/user-attachments/assets/5cf55cb5-823f-48ba-8811-102247f34945" />
+Appearance settings:
 <img width="1320" height="840" alt="settings-appearance" src="https://github.com/user-attachments/assets/f4372a86-6d47-4d27-b7a5-4a3510fe52a9" />
+Password manager:
 <img width="1320" height="840" alt="passwords" src="https://github.com/user-attachments/assets/039d3163-fd3b-43c0-b93a-2b34b1af2b74" />
+A few more themes (theres more to!):
 <img width="1320" height="840" alt="newtab-midnight" src="https://github.com/user-attachments/assets/a3418792-b0c2-432d-a186-6ba0f059f531" />
 <img width="1320" height="840" alt="newtab-noir" src="https://github.com/user-attachments/assets/b7e37288-167a-429e-ab1d-2fdd38edd710" />
+Lightweight mode:
+<img width="1919" height="1079" alt="image" src="https://github.com/user-attachments/assets/9b806937-c0d4-4014-bc3b-ea79df0544f6" />
+
 
 ---
 
