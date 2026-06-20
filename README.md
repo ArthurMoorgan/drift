@@ -26,8 +26,8 @@ Lightweight mode:
 > Requires [Node.js](https://nodejs.org) (LTS) on **Windows**.
 
 ```powershell
-git clone https://github.com/ArthurMoorgan/solace.git
-cd solace
+git clone https://github.com/ArthurMoorgan/drift.git
+cd drift
 npm install      # installs Electron + deps, and fetches uBlock Origin
 npm start
 ```
@@ -56,12 +56,12 @@ To rebrand the app icon, replace [`build/icon.svg`](build/icon.svg) and run `npm
 
 ---
 
-## Cream AI / Drift AI — bring your own key
+## Drift AI — bring your own key
 
 The new-tab page has a built-in **Claude** assistant. Click **Ask Drift AI**, paste your Anthropic API key once, and chat — replies stream in token-by-token.
 
 - **Your key stays private.** It's stored only in the app's user-data folder (`%APPDATA%/Drift`), and every API call runs in Electron's **main process**. The key is never exposed to any web page or renderer; the new-tab AI bridge is URL-locked and the main process re-validates the sender on every call.
-- **Default model:** `claude-opus-4-8` (switchable to Sonnet / Haiku in Settings).
+- **Default model:** `claude-haiku-4-5` (switchable to Sonnet / Opus in Settings).
 - **Get a key:** [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
 
 ---
@@ -91,7 +91,7 @@ Work even when a web page has focus (forwarded from the main process):
 ## Project layout
 
 ```
-solace/
+drift/
 ├─ main.js              # main process: windows, AI, downloads, vault, autofill, ad-block
 ├─ preload.js           # secure bridge for the chrome window
 ├─ build/               # app icon (icon.svg → icon.png)
