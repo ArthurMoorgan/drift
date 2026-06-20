@@ -1,7 +1,7 @@
 'use strict';
 
 /* ============================================================
-   Solace — browser chrome logic
+   Drift — browser chrome logic
    ============================================================ */
 
 const NEWTAB_URL = new URL('newtab.html', location.href).href;
@@ -44,6 +44,8 @@ function newTabExtras() {
   let s = '&se=' + currentEngine();
   if (animOff()) s += '&anim=0';
   if (liteMode()) s += '&lite=1';
+  if (minimalMode()) s += '&minimal=1';
+  if (acrylicOn()) s += '&glass=1&glasslvl=' + glassLevel();
   try { if (localStorage.getItem('cream.accentMode') === 'custom' && /^#?[0-9a-fA-F]{6}$/.test(localStorage.getItem('cream.accent') || '')) s += '&accent=' + encodeURIComponent(localStorage.getItem('cream.accent')); } catch (_) {}
   if (INCOGNITO) return s + '&incognito=1&ai=0'; // private new-tab stays minimal — no AI, widgets, or weather calls
   if (!aiEnabled()) s += '&ai=0';
@@ -154,7 +156,7 @@ function createTab(url = newTabTarget(), { activate = true } = {}) {
   wv.dataset.id = String(id);
   viewsEl.appendChild(wv);
 
-  const tab = { id, wv, url, title: 'New Tab', favicon: '', loading: false, _hist: null };
+  const tab = { id, wv, url, title: 'New Tab', favicon: '', loading: false, _hist: null, lastActive: Date.now(), discarded: false };
   tabs.push(tab);
   wireWebview(tab);
   if (activate) setActiveTab(id);
@@ -162,9 +164,45 @@ function createTab(url = newTabTarget(), { activate = true } = {}) {
   return tab;
 }
 
+// ---- Sleeping tabs: free a background tab's memory after it's been idle, and
+// recreate it on demand. The webview's renderer process is destroyed on discard. ----
+function sleepMins() { try { const n = parseInt(localStorage.getItem('cream.sleepMins') || '0', 10); return Number.isFinite(n) ? n : 0; } catch (_) { return 0; } }
+function wakeTab(tab) {
+  if (!tab.discarded) return;
+  const wv = document.createElement('webview');
+  wv.setAttribute('partition', INCOGNITO ? 'incognito' : 'persist:cream');
+  wv.setAttribute('allowpopups', '');
+  wv.setAttribute('preload', NEWTAB_PRELOAD);
+  wv.setAttribute('webpreferences', 'contextIsolation=yes');
+  wv.setAttribute('src', tab.url || newTabTarget());
+  wv.dataset.id = String(tab.id);
+  viewsEl.appendChild(wv);
+  tab.wv = wv; tab.discarded = false; tab.loading = true;
+  wireWebview(tab);
+}
+function discardTab(tab) {
+  if (!tab.wv || tab.discarded || tab.id === activeId) return;
+  try { const u = tab.wv.getURL(); if (u) tab.url = u; } catch (_) {}
+  try { tab.wv.remove(); } catch (_) {}
+  tab.wv = null; tab.discarded = true; tab.loading = false;
+  renderTabs();
+}
+function sweepIdleTabs() {
+  const mins = sleepMins(); if (!mins) return;
+  const cutoff = Date.now() - mins * 60000;
+  for (const t of tabs) {
+    if (t.id === activeId || t.discarded || !t.wv || isNewTab(t.url)) continue;
+    if ((t.lastActive || 0) < cutoff) discardTab(t);
+  }
+}
+setInterval(sweepIdleTabs, 30000); // check every 30s
+
 function setActiveTab(id) {
   activeId = id;
-  for (const t of tabs) t.wv.classList.toggle('active', t.id === id);
+  const cur = tabs.find((t) => t.id === id);
+  if (cur && cur.discarded) wakeTab(cur);        // bring a sleeping tab back
+  if (cur) cur.lastActive = Date.now();
+  for (const t of tabs) { if (t.wv) t.wv.classList.toggle('active', t.id === id); }
   renderTabs();
   syncChrome();
 }
@@ -173,7 +211,7 @@ function closeTab(id) {
   const idx = tabs.findIndex((t) => t.id === id);
   if (idx === -1) return;
   const [tab] = tabs.splice(idx, 1);
-  tab.wv.remove();
+  if (tab.wv) tab.wv.remove();
   if (tabs.length === 0) { createTab(); return; }
   if (activeId === id) setActiveTab(tabs[Math.min(idx, tabs.length - 1)].id);
   else renderTabs();
@@ -192,7 +230,7 @@ function renderTabs() {
     const el = document.createElement('div');
     const fresh = !seenTabIds.has(tab.id);
     if (fresh) seenTabIds.add(tab.id);
-    el.className = 'tab' + (tab.id === activeId ? ' active' : '') + (fresh ? ' tab-enter' : '');
+    el.className = 'tab' + (tab.id === activeId ? ' active' : '') + (fresh ? ' tab-enter' : '') + (tab.discarded ? ' discarded' : '');
     el.setAttribute('role', 'tab');
     el.setAttribute('aria-selected', tab.id === activeId ? 'true' : 'false');
     const label = tab.title || 'New Tab';
@@ -478,17 +516,42 @@ function toggleHistory() { closeMenu(); historyPanelOpen ? closeHistory() : open
 function buildMenu() {
   const gear = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 2.6 14H2.5a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4 7.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 5.1V5a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 17 4.6l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>';
   const incog = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18"/><path d="M6 11l1.4-4.3A2 2 0 0 1 9.3 5.3h5.4a2 2 0 0 1 1.9 1.4L18 11"/><circle cx="7.5" cy="15" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/><path d="M10 15h4"/></svg>';
+  const S = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+  const dl = S('<path d="M12 3v11M7.5 10l4.5 4 4.5-4"/><path d="M5 20h14"/>');
+  const ext = S('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>');
+  const bm = S('<path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/>');
+  const sun = S('<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.6M12 19.4V22M4.2 4.2 6 6M18 18l1.8 1.8M2 12h2.6M19.4 12H22M4.2 19.8 6 18M18 6l1.8-1.8"/>');
   const items = [
     { icon: IC.plus, label: 'New tab', sc: 'Ctrl T', fn: () => { createTab(); focusOmnibox(); } },
     { icon: incog, label: 'New incognito window', sc: 'Ctrl ⇧ N', fn: () => { try { window.browserAPI.newIncognito(); } catch (_) {} } },
-    { icon: IC.clock, label: 'History', sc: 'Ctrl H', fn: () => toggleHistory() },
-    { icon: gear, label: 'Settings', fn: () => openSettings() },
     { sep: true },
-    { icon: IC.info, label: 'About Solace', fn: () => openSettings('about') },
+    { zoom: true },
+    { sep: true },
+    { icon: dl, label: 'Downloads', sc: 'Ctrl J', fn: () => toggleDownloads() },
+    { icon: IC.clock, label: 'History', sc: 'Ctrl H', fn: () => toggleHistory() },
+    { icon: bm, label: 'Toggle bookmarks bar', fn: () => { setBookmarksBarHidden(!document.body.classList.contains('bookmarks-hidden')); updateRailActive(); } },
+    { icon: ext, label: 'Extensions', fn: () => openSettings('extensions') },
+    { icon: sun, label: 'Toggle light / dark', fn: () => toggleTheme() },
+    { sep: true },
+    { icon: gear, label: 'Settings', fn: () => openSettings() },
+    { icon: IC.info, label: 'About Drift', fn: () => openSettings('about') },
   ];
   menuDropdown.innerHTML = '';
   for (const it of items) {
     if (it.sep) { const s = document.createElement('div'); s.className = 'menu-sep'; menuDropdown.appendChild(s); continue; }
+    if (it.zoom) {
+      const pct = () => { try { const t = activeTab(); return Math.round((t && t.wv && !t.discarded ? t.wv.getZoomFactor() : 1) * 100) + '%'; } catch (_) { return '100%'; } };
+      const row = document.createElement('div'); row.className = 'menu-zoom';
+      row.innerHTML = '<span class="menu-zoom-label">Zoom</span><span class="menu-zoom-ctrl">' +
+        '<button type="button" id="mzOut" aria-label="Zoom out">−</button>' +
+        '<button type="button" id="mzVal" title="Reset zoom">' + pct() + '</button>' +
+        '<button type="button" id="mzIn" aria-label="Zoom in">+</button></span>';
+      const upd = () => { const v = row.querySelector('#mzVal'); if (v) v.textContent = pct(); };
+      row.querySelector('#mzOut').addEventListener('click', (e) => { e.stopPropagation(); zoomOut(); setTimeout(upd, 40); });
+      row.querySelector('#mzIn').addEventListener('click', (e) => { e.stopPropagation(); zoomIn(); setTimeout(upd, 40); });
+      row.querySelector('#mzVal').addEventListener('click', (e) => { e.stopPropagation(); zoomReset(); setTimeout(upd, 40); });
+      menuDropdown.appendChild(row); continue;
+    }
     const b = document.createElement('button');
     b.className = 'menu-item';
     b.setAttribute('role', 'menuitem');
@@ -538,8 +601,8 @@ function errorPage(url, desc) {
      <a class="btn" href="${escapeHtml(url)}">Try again</a>`);
 }
 function aboutPage() {
-  return pageShell('About Solace',
-    `<div class="dot">◐</div><h1>Solace</h1>
+  return pageShell('About Drift',
+    `<div class="dot">◐</div><h1>Drift</h1>
      <p>A light &amp; minimal liquid-glass browser, built on Electron with a real Chromium engine.</p>
      <p style="margin-top:10px">Tabs · smart omnibox · bookmarks · history · keyboard shortcuts.</p>
      <div class="url">Version 1.0.0</div>`);
@@ -852,7 +915,7 @@ function buildAppearance() {
     '<span class="tcard-prev tcard-sys"><span class="tcard-bar" style="background:rgba(140,140,140,.32)"></span><span class="tcard-dot"></span></span>' +
     '<span class="tcard-name">System</span></button>';
   el.innerHTML =
-    '<h2>Appearance</h2><p class="sub">Make Solace yours — theme, accent colour, background, and layout.</p>' +
+    '<h2>Appearance</h2><p class="sub">Make Drift yours — theme, accent colour, background, and layout.</p>' +
     '<div class="set-group"><div class="set-label">Theme</div>' +
     '<div class="theme-grid" id="modeSeg">' + themeCards + '</div></div>' +
     '<div class="set-group"><div class="set-label">Accent colour</div>' +
@@ -932,7 +995,7 @@ function buildAppearance() {
   const pv = el.querySelector('#bgPreview');
   const presetWrap = el.querySelector('#bgPresets');
   const BG_PRESETS = [
-    { id: 'cream.svg', name: 'Solace' },
+    { id: 'cream.svg', name: 'Drift' },
     { id: 'terracotta.svg', name: 'Terracotta' },
     { id: 'sage.svg', name: 'Sage' },
     { id: 'ocean.svg', name: 'Ocean' },
@@ -999,15 +1062,15 @@ function buildAppearance() {
 
 async function buildAI() {
   const el = $('secAI');
-  let c = { hasKey: false, model: 'claude-opus-4-8', models: [] };
+  let c = { hasKey: false, model: 'claude-haiku-4-5', models: [] };
   try { c = await window.browserAPI.getAIConfig(); } catch (_) {}
   const models = (c.models && c.models.length) ? c.models : [{ id: c.model, label: c.model }];
   const opts = models.map((m) => `<option value="${m.id}"${m.id === c.model ? ' selected' : ''}>${escapeHtml(m.label)}</option>`).join('');
   const aiOn = aiEnabled();
   el.innerHTML =
-    '<h2>Solace AI</h2><p class="sub">A built-in Claude assistant on every new-tab page.</p>' +
+    '<h2>Drift AI</h2><p class="sub">A built-in Claude assistant on every new-tab page.</p>' +
     '<div class="set-group">' +
-    '<div class="set-row"><div class="rl"><div class="nm">Enable Solace AI</div><div class="ds">Show the assistant on new-tab pages and the sidebar.</div></div>' +
+    '<div class="set-row"><div class="rl"><div class="nm">Enable Drift AI</div><div class="ds">Show the assistant on new-tab pages and the sidebar.</div></div>' +
     `<div class="set-right"><div class="switch${aiOn ? ' on' : ''}" id="aiEnableSwitch" role="switch" aria-checked="${aiOn}" tabindex="0"></div></div></div>` +
     '<div class="set-row"><div class="rl"><div class="nm">Connection</div><div class="ds">Your Anthropic API key is stored locally and used only for your chats.</div></div>' +
     `<div class="set-right">${c.hasKey ? '<span class="pill ok">Connected</span>' : '<span class="pill off">Not connected</span>'}</div></div>` +
@@ -1043,6 +1106,16 @@ function buildBrowsing() {
   const seCur = currentEngine();
   const seOpts = Object.keys(SEARCH_ENGINES).map((k) => `<option value="${k}"${k === seCur ? ' selected' : ''}>${SEARCH_ENGINES[k].name}</option>`).join('');
   const lite = liteMode();
+  const vtOn = verticalTabsOn();
+  const ahOn = vbarAutohideOn();
+  const ctrOn = centerUrlOn();
+  const acryOn = acrylicOn();
+  const glassLvl = glassLevel();
+  const mode = browserMode();
+  const sleepCur = sleepMins();
+  const sleepOpts = [[0, 'Off'], [5, 'After 5 minutes'], [15, 'After 15 minutes'], [30, 'After 30 minutes'], [60, 'After 1 hour']]
+    .map(([v, l]) => `<option value="${v}"${v === sleepCur ? ' selected' : ''}>${l}</option>`).join('');
+  const modeBtn = (id, label, desc) => `<button type="button" class="mode-opt${mode === id ? ' on' : ''}" data-mode="${id}"><span class="mode-opt-t">${label}</span><span class="mode-opt-d">${desc}</span></button>`;
   let animOn = true; try { animOn = localStorage.getItem('cream.anim') !== '0'; } catch (_) {}
   el.innerHTML =
     '<h2>Browsing</h2><p class="sub">Search, rendering, performance, and your data.</p>' +
@@ -1055,16 +1128,33 @@ function buildBrowsing() {
     '<div class="set-row"><div class="rl"><div class="nm">Show bookmarks bar</div><div class="ds">Toggle the bookmarks strip under the toolbar.</div></div>' +
     `<div class="set-right"><div class="switch${bmHidden ? '' : ' on'}" id="bmSwitch" role="switch" aria-checked="${!bmHidden}" tabindex="0"></div></div></div>` +
     '</div>' +
+    '<div class="set-group"><div class="set-label">Interface</div>' +
+    '<div class="set-row"><div class="rl"><div class="nm">Browser mode</div><div class="ds">Choose the overall feel of the browser.</div></div></div>' +
+    '<div class="mode-seg" id="modeSeg" role="radiogroup" aria-label="Browser mode">' +
+      modeBtn('normal', 'Normal', 'Full liquid-glass UI') +
+      modeBtn('lite', 'Lightweight', 'Low-memory, plain & fast') +
+      modeBtn('minimal', 'Minimal', 'Thin, sleek, decluttered') +
+    '</div>' +
+    '<div class="set-row"><div class="rl"><div class="nm">Vertical tabs</div><div class="ds">Move your tabs and address bar into a solid sidebar down the left edge.</div></div>' +
+    `<div class="set-right"><div class="switch${vtOn ? ' on' : ''}" id="vtabSwitch" role="switch" aria-checked="${vtOn}" tabindex="0"></div></div></div>` +
+    '<div class="set-row"><div class="rl"><div class="nm">Auto-hide the tab sidebar</div><div class="ds">When using vertical tabs, tuck the sidebar away and slide it out on hover.</div></div>' +
+    `<div class="set-right"><div class="switch${ahOn ? ' on' : ''}" id="vbarAutohideSwitch" role="switch" aria-checked="${ahOn}" tabindex="0"></div></div></div>` +
+    '<div class="set-row"><div class="rl"><div class="nm">Center the address bar</div><div class="ds">Center the text in the address bar for a cleaner look.</div></div>' +
+    `<div class="set-right"><div class="switch${ctrOn ? ' on' : ''}" id="centerUrlSwitch" role="switch" aria-checked="${ctrOn}" tabindex="0"></div></div></div>` +
+    '<div class="set-row"><div class="rl"><div class="nm">Glass theme</div><div class="ds">Make the whole browser translucent glass — the blurred desktop shows through. Windows 11 only; best on a dark theme. Re-open the window after toggling.</div></div>' +
+    `<div class="set-right"><div class="switch${acryOn ? ' on' : ''}" id="acrylicSwitch" role="switch" aria-checked="${acryOn}" tabindex="0"></div></div></div>` +
+    '<div class="set-row"><div class="rl"><div class="nm">Glass translucency</div><div class="ds">How much the desktop shows through. Drag higher for more glass.</div></div>' +
+    `<div class="set-right glass-slider"><input type="range" id="glassSlider" min="20" max="95" step="1" value="${glassLvl}" aria-label="Glass translucency" /><span id="glassVal">${glassLvl}%</span></div></div></div>` +
     '<div class="set-group"><div class="set-label">Performance</div>' +
     '<div class="set-row"><div class="rl"><div class="nm">Animations</div><div class="ds">Smooth motion and transitions. Turn off to reduce CPU use.</div></div>' +
     `<div class="set-right"><div class="switch${animOn ? ' on' : ''}" id="animSwitch" role="switch" aria-checked="${animOn}" tabindex="0"></div></div></div>` +
-    '<div class="set-row"><div class="rl"><div class="nm">Lightweight mode</div><div class="ds">A very minimal, low-memory mode — hides the clock, widgets, animations, and glass effects.</div></div>' +
-    `<div class="set-right"><div class="switch${lite ? ' on' : ''}" id="liteSwitch" role="switch" aria-checked="${lite}" tabindex="0"></div></div></div></div>` +
+    '<div class="set-row"><div class="rl"><div class="nm">Sleep inactive tabs</div><div class="ds">Free a background tab’s memory after it’s been idle. It reloads when you click it again.</div></div>' +
+    `<div class="set-right"><div class="field"><select id="sleepSel">${sleepOpts}</select></div></div></div></div>` +
     '<div class="set-group"><div class="set-label">Data</div>' +
     '<div class="set-row"><div class="rl"><div class="nm">Import bookmarks</div><div class="ds">Bring bookmarks in from another browser on this PC.</div></div>' +
     '<div class="set-right"><button class="btn" id="importBtn">Choose browser…</button></div></div>' +
     '<div class="set-row" id="importRow" style="display:none;border-top:none;padding-top:0"><div class="rl" style="width:100%"><div class="onb-import" id="importList"></div></div></div>' +
-    '<div class="set-row"><div class="rl"><div class="nm">Browsing history</div><div class="ds">Clear all pages saved in Solace’s history.</div></div>' +
+    '<div class="set-row"><div class="rl"><div class="nm">Browsing history</div><div class="ds">Clear all pages saved in Drift’s history.</div></div>' +
     '<div class="set-right"><button class="btn danger" id="clearHistBtn">Clear history</button></div></div></div>';
 
   el.querySelector('#searchSel').addEventListener('change', (e) => {
@@ -1081,18 +1171,39 @@ function buildBrowsing() {
     e.currentTarget.classList.toggle('on', on); e.currentTarget.setAttribute('aria-checked', on);
     setBookmarksBarHidden(!on); updateRailActive();
   });
+  el.querySelector('#vtabSwitch').addEventListener('click', (e) => {
+    const on = !e.currentTarget.classList.contains('on');
+    e.currentTarget.classList.toggle('on', on); e.currentTarget.setAttribute('aria-checked', on);
+    setVerticalTabs(on);
+  });
   el.querySelector('#animSwitch').addEventListener('click', (e) => {
     const on = !e.currentTarget.classList.contains('on');
     e.currentTarget.classList.toggle('on', on); e.currentTarget.setAttribute('aria-checked', on);
     try { localStorage.setItem('cream.anim', on ? '1' : '0'); } catch (_) {}
     applyChromeModes(); renavNewTabViews();
   });
-  el.querySelector('#liteSwitch').addEventListener('click', (e) => {
+  el.querySelectorAll('#modeSeg .mode-opt').forEach((b) => b.addEventListener('click', () => {
+    el.querySelectorAll('#modeSeg .mode-opt').forEach((x) => x.classList.toggle('on', x === b));
+    setBrowserMode(b.dataset.mode);
+  }));
+  el.querySelector('#vbarAutohideSwitch').addEventListener('click', (e) => {
     const on = !e.currentTarget.classList.contains('on');
     e.currentTarget.classList.toggle('on', on); e.currentTarget.setAttribute('aria-checked', on);
-    try { localStorage.setItem('cream.lite', on ? '1' : '0'); } catch (_) {}
-    applyChromeModes(); renavNewTabViews();
+    setVbarAutohide(on);
   });
+  el.querySelector('#centerUrlSwitch').addEventListener('click', (e) => {
+    const on = !e.currentTarget.classList.contains('on');
+    e.currentTarget.classList.toggle('on', on); e.currentTarget.setAttribute('aria-checked', on);
+    setCenterUrl(on);
+  });
+  el.querySelector('#acrylicSwitch').addEventListener('click', (e) => {
+    const on = !e.currentTarget.classList.contains('on');
+    e.currentTarget.classList.toggle('on', on); e.currentTarget.setAttribute('aria-checked', on);
+    setAcrylicMode(on);
+  });
+  const glassSlider = el.querySelector('#glassSlider'); const glassValEl = el.querySelector('#glassVal');
+  glassSlider.addEventListener('input', (e) => { const v = Number(e.target.value); glassValEl.textContent = v + '%'; setGlassLevel(v); pushGlassToNewTabs(v); });
+  el.querySelector('#sleepSel').addEventListener('change', (e) => { try { localStorage.setItem('cream.sleepMins', e.target.value); } catch (_) {} });
   el.querySelector('#importBtn').addEventListener('click', async (ev) => {
     const row = el.querySelector('#importRow'); const box = el.querySelector('#importList');
     ev.target.disabled = true; ev.target.textContent = 'Scanning…';
@@ -1116,8 +1227,8 @@ function buildAbout() {
   const el = $('secAbout');
   el.innerHTML =
     '<h2>About</h2><p class="sub">The calm, customizable browser.</p>' +
-    '<div class="about-logo">S</div>' +
-    '<div class="set-row"><div class="rl"><div class="nm">Solace</div><div class="ds">Version 1.0.0 · Electron + Chromium</div></div></div>' +
+    '<div class="about-logo"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.3" opacity="0.5"/><path d="M5.5 15.5C9 17.5 12.5 14 16.5 7.5"/><path d="M12.7 7.6 17 7l-.6 4.2"/><circle cx="8" cy="13.4" r="1.7" fill="currentColor" stroke="none"/></svg></div>' +
+    '<div class="set-row"><div class="rl"><div class="nm">Drift</div><div class="ds">Version 1.0.0 · Electron + Chromium</div></div></div>' +
     '<p class="set-note">A light &amp; minimal liquid-glass browser with a built-in Claude assistant, animated dark mode, and a customizable theme gallery. Tabs · smart omnibox · bookmarks · history · downloads · zoom · snip · extensions.</p>';
 }
 
@@ -1181,7 +1292,7 @@ async function buildPasswords() {
   try { pwEntries = await window.browserAPI.pwList(); } catch (_) { pwEntries = []; }
   try { enc = await window.browserAPI.pwAvailable(); } catch (_) {}
   el.innerHTML =
-    '<h2>Passwords</h2><p class="sub">Save logins in an encrypted vault on this device. Solace never uploads or syncs them.</p>' +
+    '<h2>Passwords</h2><p class="sub">Save logins in an encrypted vault on this device. Drift never uploads or syncs them.</p>' +
     '<div class="help-bar"><div class="help-ic">' + ICO_PW.lock + '</div><div class="help-body">' +
     '<div class="help-title">' + (enc ? 'Encrypted with your system keychain' : 'Stored locally on this device') + '</div>' +
     '<div class="help-tip">' + (enc
@@ -1298,7 +1409,7 @@ function showPwSavePrompt(data) {
   setTimeout(() => { if (pwPromptEl === el) close(); }, 20000);
 }
 
-// "Make Solace your default browser?" nudge — on first run and periodically if not default.
+// "Make Drift your default browser?" nudge — on first run and periodically if not default.
 async function maybeShowDefaultPrompt() {
   if (typeof INCOGNITO !== 'undefined' && INCOGNITO) return;
   let st = null;
@@ -1313,8 +1424,8 @@ function showDefaultPrompt() {
   el.innerHTML =
     '<div class="pw-prompt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div>' +
     '<div class="pw-prompt-body">' +
-    '<div class="pw-prompt-title">Make Solace your default browser?</div>' +
-    '<div class="pw-prompt-sub">Open links from other apps in Solace.</div>' +
+    '<div class="pw-prompt-title">Make Drift your default browser?</div>' +
+    '<div class="pw-prompt-sub">Open links from other apps in Drift.</div>' +
     '<div class="pw-prompt-row"><button class="btn ghost" data-act="no">Not now</button><button class="btn" data-act="yes">Make default</button></div>' +
     '</div><button class="pw-prompt-x" aria-label="Dismiss">&times;</button>';
   document.body.appendChild(el);
@@ -1325,7 +1436,7 @@ function showDefaultPrompt() {
   el.querySelector('[data-act="no"]').addEventListener('click', snooze);
   el.querySelector('[data-act="yes"]').addEventListener('click', () => {
     try { window.browserAPI.defaultMake(); } catch (_) {}
-    toast('Pick Solace in Windows settings to finish');
+    toast('Pick Drift in Windows settings to finish');
     close();
   });
   setTimeout(() => { if (el.isConnected) snooze(); }, 20000);
@@ -1339,17 +1450,17 @@ async function buildPrivacy() {
   const eng = p.adblockEngine === 'ublock' ? 'ublock' : 'cream';
   const ubo = eng === 'ublock';
   el.innerHTML =
-    '<h2>Privacy &amp; security</h2><p class="sub">Block trackers and ads, and clear what Solace has stored.</p>' +
+    '<h2>Privacy &amp; security</h2><p class="sub">Block trackers and ads, and clear what Drift has stored.</p>' +
     '<div class="set-group"><div class="set-label">Protection</div>' +
-    '<div class="set-row"><div class="rl"><div class="nm">Ad-blocker engine</div><div class="ds">uBlock Origin (built in) or Solace’s lightweight blocker.</div></div>' +
-    `<div class="set-right"><div class="field"><select id="adEngineSel"><option value="ublock"${ubo ? ' selected' : ''}>uBlock Origin</option><option value="cream"${ubo ? '' : ' selected'}>Solace built-in</option></select></div></div></div>` +
+    '<div class="set-row"><div class="rl"><div class="nm">Ad-blocker engine</div><div class="ds">uBlock Origin (built in) or Drift’s lightweight blocker.</div></div>' +
+    `<div class="set-right"><div class="field"><select id="adEngineSel"><option value="ublock"${ubo ? ' selected' : ''}>uBlock Origin</option><option value="cream"${ubo ? '' : ' selected'}>Drift built-in</option></select></div></div></div>` +
     '<div class="set-row"><div class="rl"><div class="nm">Ad &amp; tracker blocker</div><div class="ds">Blocks known ad and tracking domains' + (p.blocked ? ' · <b>' + p.blocked + '</b> blocked this session' : '') + '.</div></div>' +
     `<div class="set-right"><div class="switch${p.adblock ? ' on' : ''}${ubo ? ' is-off' : ''}" id="adblockSwitch" role="switch" aria-checked="${p.adblock}" tabindex="0"${ubo ? ' style="opacity:.45;pointer-events:none"' : ''}></div></div></div>` +
-    (ubo ? '<div class="set-row"><div class="rl"><div class="ds">uBlock Origin is built in and active — it handles ad &amp; tracker blocking, so Solace’s built-in blocker is paused.</div></div></div>' : '') +
+    (ubo ? '<div class="set-row"><div class="rl"><div class="ds">uBlock Origin is built in and active — it handles ad &amp; tracker blocking, so Drift’s built-in blocker is paused.</div></div></div>' : '') +
     '<div class="set-row"><div class="rl"><div class="nm">Send “Do Not Track”</div><div class="ds">Ask sites not to track you (also sets Global Privacy Control).</div></div>' +
     `<div class="set-right"><div class="switch${p.dnt ? ' on' : ''}" id="dntSwitch" role="switch" aria-checked="${p.dnt}" tabindex="0"></div></div></div></div>` +
     '<div class="set-group"><div class="set-label">Clear on exit</div>' +
-    '<div class="set-row"><div class="rl"><div class="nm">Browsing history</div><div class="ds">Wipe Solace’s history every time you quit.</div></div>' +
+    '<div class="set-row"><div class="rl"><div class="nm">Browsing history</div><div class="ds">Wipe Drift’s history every time you quit.</div></div>' +
     `<div class="set-right"><div class="switch${ce.history ? ' on' : ''}" id="ceHistory" role="switch" aria-checked="${ce.history}" tabindex="0"></div></div></div>` +
     '<div class="set-row"><div class="rl"><div class="nm">Cookies &amp; logins</div><div class="ds">Sign out of every site and clear their storage on quit.</div></div>' +
     `<div class="set-right"><div class="switch${ce.cookies ? ' on' : ''}" id="ceCookies" role="switch" aria-checked="${ce.cookies}" tabindex="0"></div></div></div>` +
@@ -1761,9 +1872,24 @@ function toggleTool(tool) {
   if (i === -1) arr.push(tool); else arr.splice(i, 1);
   saveHiddenTools(arr); applyHiddenTools();
 }
+
+// Right-click-to-hide for the sidebar/foot rail buttons (works in both the icon
+// rail and the vertical-tab foot, since they're the same elements).
+const RAIL_HIDEABLE = { railBookmarks: 'bookmarks button', railHistory: 'history button', railAI: 'Drift AI button', railMusic: 'music button' };
+function loadHiddenRail() { try { const a = JSON.parse(localStorage.getItem('cream.hiddenRail') || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } }
+function saveHiddenRail(a) { try { localStorage.setItem('cream.hiddenRail', JSON.stringify(a)); } catch (_) {} }
+function applyHiddenRail() { const h = new Set(loadHiddenRail()); Object.keys(RAIL_HIDEABLE).forEach((id) => { const b = $(id); if (b) b.style.display = h.has(id) ? 'none' : ''; }); }
+function toggleRailHidden(id) { const a = loadHiddenRail(); const i = a.indexOf(id); if (i === -1) a.push(id); else a.splice(i, 1); saveHiddenRail(a); applyHiddenRail(); }
+function showRailMenu(x, y, id) {
+  showCtxMenu(x, y, [
+    { label: 'Remove ' + (RAIL_HIDEABLE[id] || 'button'), fn: () => toggleRailHidden(id) },
+    loadHiddenRail().length ? { label: 'Restore all hidden icons', fn: () => { saveHiddenRail([]); applyHiddenRail(); } } : null,
+  ]);
+}
 // Shared floating context menu (toolbar customise + web-page right-click)
-let ctxMenuEl = null;
+let ctxMenuEl = null, ctxBackdrop = null;
 function closeCtxMenu() {
+  if (ctxBackdrop) { ctxBackdrop.remove(); ctxBackdrop = null; }
   if (!ctxMenuEl) return;
   ctxMenuEl.remove(); ctxMenuEl = null;
   document.removeEventListener('mousedown', closeCtxMenu);
@@ -1773,6 +1899,12 @@ function closeCtxMenu() {
 }
 function showCtxMenu(x, y, items) {
   closeCtxMenu();
+  // Invisible full-window backdrop ABOVE the page so a click anywhere — including
+  // over a <webview> — dismisses the menu (webview clicks don't reach the document).
+  const bd = document.createElement('div'); bd.className = 'ctx-backdrop'; ctxBackdrop = bd;
+  bd.addEventListener('mousedown', (e) => { e.preventDefault(); closeCtxMenu(); });
+  bd.addEventListener('contextmenu', (e) => { e.preventDefault(); closeCtxMenu(); });
+  document.body.appendChild(bd);
   const m = document.createElement('div'); m.className = 'ctx-menu'; ctxMenuEl = m;
   // Clicks inside the menu box must NOT dismiss it (only item actions act).
   m.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -1878,14 +2010,198 @@ function reloadNewTabViews() { for (const t of tabs) { if (isNewTab(t.url)) { tr
 function renavNewTabViews() { for (const t of tabs) { if (isNewTab(t.url)) { try { t.wv.setAttribute('src', newTabTarget()); } catch (_) {} } } }
 function saveWidgetPrefs(w) { try { localStorage.setItem('cream.widgets', JSON.stringify(w)); } catch (_) {} }
 function applyAIEnabled() { const r = $('railAI'); if (r) r.style.display = aiEnabled() ? '' : 'none'; }
+function minimalMode() { try { return localStorage.getItem('cream.minimal') === '1'; } catch (_) { return false; } }
+// The browser's overall look: 'normal' | 'lite' (lightweight) | 'minimal'. Mutually exclusive.
+function browserMode() { return minimalMode() ? 'minimal' : (liteMode() ? 'lite' : 'normal'); }
+function setBrowserMode(mode) {
+  try {
+    localStorage.setItem('cream.lite', mode === 'lite' ? '1' : '0');
+    localStorage.setItem('cream.minimal', mode === 'minimal' ? '1' : '0');
+  } catch (_) {}
+  applyChromeModes(); renavNewTabViews();
+}
+function centerUrlOn() { try { return localStorage.getItem('cream.centerUrl') === '1'; } catch (_) { return false; } }
+function setCenterUrl(on) { document.body.classList.toggle('center-url', on); try { localStorage.setItem('cream.centerUrl', on ? '1' : '0'); } catch (_) {} }
+function acrylicOn() { try { return localStorage.getItem('cream.acrylic') === '1'; } catch (_) { return false; } }
+function glassLevel() { try { const n = parseInt(localStorage.getItem('cream.glassLevel') || '55', 10); return Number.isFinite(n) ? Math.min(95, Math.max(0, n)) : 55; } catch (_) { return 55; } }
+function applyGlassLevel() {
+  const tint = Math.min(92, Math.max(8, 100 - glassLevel()));   // higher level = more see-through
+  const s = document.documentElement.style;
+  s.setProperty('--glass-tint', tint + '%');
+  s.setProperty('--glass-tint-strong', Math.min(96, tint + 24) + '%');
+}
+function setGlassLevel(v) { try { localStorage.setItem('cream.glassLevel', String(v)); } catch (_) {} applyGlassLevel(); }
+function pushGlassToNewTabs(lvl) {
+  for (const t of tabs) {
+    if (t.wv && !t.discarded && isNewTab(t.url)) {
+      try { t.wv.executeJavaScript('window.__driftSetGlass && window.__driftSetGlass(' + Number(lvl) + ')'); } catch (_) {}
+    }
+  }
+}
+function setAcrylicMode(on) {
+  document.documentElement.classList.toggle('acrylic', on);
+  applyGlassLevel();
+  try { window.browserAPI.setAcrylic && window.browserAPI.setAcrylic(on); } catch (_) {}
+  try { localStorage.setItem('cream.acrylic', on ? '1' : '0'); } catch (_) {}
+}
 function applyChromeModes() {
   const d = document.documentElement;
   const lite = liteMode();
+  const minimal = minimalMode();
   d.classList.toggle('lite', lite);
+  d.classList.toggle('minimal', minimal);
   let animO = false; try { animO = localStorage.getItem('cream.anim') === '0'; } catch (_) {}
   d.classList.toggle('no-anim', lite || animO);
 }
 function setSidebarRemoved(removed) { document.body.classList.toggle('no-sidebar', removed); try { localStorage.setItem('cream.noSidebar', removed ? '1' : '0'); } catch (_) {} }
+
+// ---- Vertical tabs: relocate the real chrome nodes into a solid left rail ----
+function verticalTabsOn() { try { return localStorage.getItem('cream.vtabs') === '1'; } catch (_) { return false; } }
+// Which real chrome nodes get relocated into the rail, and into which slot.
+const VTAB_RELOC = [
+  ['.nav-group', 'vbarNav'],
+  ['#omnibox', 'vbarOmni'],
+  ['#railApps', 'vbarPins'], ['#railAddApp', 'vbarPins'],
+  ['#railSites', 'vbarPins'], ['#railAddSite', 'vbarPins'],
+  ['#tabstrip', 'vbarTabs'],
+  ['#railAI', 'vbarFoot'], ['#actionGroup', 'vbarFoot'], ['#railMusic', 'vbarFoot'], ['#railSettings', 'vbarFoot'],
+];
+let vtabMoves = null;
+function setVerticalTabs(on) {
+  if (!$('vbar')) return;
+  if (on) {
+    if (!vtabMoves) {
+      vtabMoves = [];
+      for (const [sel, slot] of VTAB_RELOC) {
+        const node = document.querySelector(sel), dst = $(slot);
+        if (!node || !dst) continue;
+        vtabMoves.push({ node, parent: node.parentNode, next: node.nextSibling }); // remember home
+        dst.appendChild(node);
+      }
+    } else {
+      for (const [sel, slot] of VTAB_RELOC) { const node = document.querySelector(sel), dst = $(slot); if (node && dst) dst.appendChild(node); }
+    }
+    document.body.classList.add('vtabs');
+  } else {
+    if (vtabMoves) for (let i = vtabMoves.length - 1; i >= 0; i--) {   // restore in reverse so siblings land correctly
+      const m = vtabMoves[i];
+      if (m.next && m.next.parentNode === m.parent) m.parent.insertBefore(m.node, m.next);
+      else m.parent.appendChild(m.node);
+    }
+    document.body.classList.remove('vtabs');
+  }
+  try { localStorage.setItem('cream.vtabs', on ? '1' : '0'); } catch (_) {}
+}
+function vbarAutohideOn() { try { return localStorage.getItem('cream.vbarAutohide') === '1'; } catch (_) { return false; } }
+function setVbarAutohide(on) {
+  document.body.classList.toggle('vbar-autohide', on);
+  try { localStorage.setItem('cream.vbarAutohide', on ? '1' : '0'); } catch (_) {}
+}
+
+// ============================================================
+//  Web apps — pinned apps that open in a solid slide-out panel
+// ============================================================
+const DEFAULT_WEBAPPS = [
+  { id: 'instagram', name: 'Instagram', url: 'https://www.instagram.com/' },
+  { id: 'whatsapp', name: 'WhatsApp', url: 'https://web.whatsapp.com/' },
+  { id: 'discord', name: 'Discord', url: 'https://discord.com/app' },
+  { id: 'tiktok', name: 'TikTok', url: 'https://www.tiktok.com/' },
+];
+function loadWebApps() {
+  try { const r = JSON.parse(localStorage.getItem('cream.webapps') || 'null'); if (Array.isArray(r)) return r; } catch (_) {}
+  return DEFAULT_WEBAPPS.slice();
+}
+function saveWebApps() { try { localStorage.setItem('cream.webapps', JSON.stringify(webApps)); } catch (_) {} }
+let webApps = loadWebApps();
+let appPanelOpen = false, appCurrentId = null;
+const appWvs = Object.create(null);
+
+function appColor(id) { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360; return 'hsl(' + h + ' 52% 52%)'; }
+function appInitial(name) { return ((name || '?').trim().charAt(0) || '?').toUpperCase(); }
+
+function renderWebApps() {
+  const wrap = $('railApps'); if (!wrap) return;
+  wrap.innerHTML = '';
+  webApps.forEach((a) => {
+    const b = document.createElement('button');
+    b.className = 'rail-btn rail-app' + (appPanelOpen && appCurrentId === a.id ? ' active' : '');
+    b.title = a.name; b.dataset.app = a.id;
+    b.innerHTML = '<span class="rail-app-ic" style="background:' + appColor(a.id) + '">' + escapeHtml(appInitial(a.name)) + '</span>';
+    b.addEventListener('click', () => toggleWebApp(a.id));
+    b.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); showAppMenu(e.clientX, e.clientY, a); });
+    wrap.appendChild(b);
+  });
+}
+
+const APP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36';
+function getAppWv(app) {
+  if (appWvs[app.id]) return appWvs[app.id];
+  const wv = document.createElement('webview');
+  wv.setAttribute('partition', 'persist:app-' + app.id);   // isolated, persistent login per app
+  wv.setAttribute('allowpopups', '');
+  wv.setAttribute('webpreferences', 'contextIsolation=yes');
+  wv.setAttribute('useragent', APP_UA);                     // present as plain Chrome so apps (WhatsApp etc.) accept us
+  wv.setAttribute('src', toURL(app.url) || app.url);
+  wv.style.display = 'none';
+  $('appPanelBody').appendChild(wv);
+  appWvs[app.id] = wv;
+  return wv;
+}
+function toggleWebApp(id) { if (appPanelOpen && appCurrentId === id) closeAppPanel(); else openWebApp(id); }
+function openWebApp(id) {
+  const app = webApps.find((a) => a.id === id); if (!app) return;
+  Object.keys(appWvs).forEach((k) => { appWvs[k].style.display = 'none'; });
+  getAppWv(app).style.display = '';
+  appCurrentId = id; appPanelOpen = true;
+  $('appPanelTitle').textContent = app.name;
+  const ico = $('appPanelIco'); ico.textContent = appInitial(app.name); ico.style.background = appColor(id);
+  document.body.classList.add('apppanel-open');
+  $('appPanel').setAttribute('aria-hidden', 'false');
+  renderWebApps();
+}
+function closeAppPanel() {
+  appPanelOpen = false; appCurrentId = null;
+  document.body.classList.remove('apppanel-open');
+  $('appPanel').setAttribute('aria-hidden', 'true');
+  renderWebApps();
+}
+function appPanelActiveWv() { return appCurrentId ? appWvs[appCurrentId] : null; }
+function addWebApp(name, url) {
+  const u = toURL(url); if (!u || !/^https?:/i.test(u)) { toast('Enter a valid web address'); return false; }
+  name = (name || hostOf(u) || 'App').trim();
+  const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'app';
+  let id = base, n = 2; while (webApps.some((a) => a.id === id)) id = base + '-' + (n++);
+  webApps.push({ id, name, url: u });
+  saveWebApps(); renderWebApps(); return true;
+}
+function removeWebApp(id) {
+  const i = webApps.findIndex((a) => a.id === id); if (i === -1) return;
+  webApps.splice(i, 1); saveWebApps();
+  if (appWvs[id]) { try { appWvs[id].remove(); } catch (_) {} delete appWvs[id]; }
+  if (appCurrentId === id) closeAppPanel(); else renderWebApps();
+}
+function showAppMenu(x, y, app) {
+  showCtxMenu(x, y, [
+    { head: app.name },
+    { label: 'Open in a full tab', fn: () => { createTab(app.url); closeAppPanel(); } },
+    { label: 'Reload', fn: () => { const w = appWvs[app.id]; if (w) try { w.reload(); } catch (_) {} } },
+    { sep: true },
+    { label: 'Remove app', fn: () => removeWebApp(app.id) },
+  ]);
+}
+let addAppPopOpen = false;
+function openAddApp() {
+  const pop = $('addAppPop'); const r = $('railAddApp').getBoundingClientRect();
+  pop.style.left = (r.right + 8) + 'px'; pop.style.right = 'auto';
+  pop.style.top = Math.max(8, Math.min(r.top, window.innerHeight - 200)) + 'px';
+  pop.classList.add('open'); pop.setAttribute('aria-hidden', 'false');
+  addAppPopOpen = true; setTimeout(() => $('addAppName').focus(), 0);
+}
+function closeAddApp() { const pop = $('addAppPop'); pop.classList.remove('open'); pop.setAttribute('aria-hidden', 'true'); addAppPopOpen = false; }
+function toggleAddApp() { addAppPopOpen ? closeAddApp() : openAddApp(); }
+function submitAddApp() {
+  if (addWebApp($('addAppName').value, $('addAppUrl').value)) { $('addAppName').value = ''; $('addAppUrl').value = ''; closeAddApp(); }
+}
 let toastTimer = null;
 function toast(msg) {
   let el = document.getElementById('creamToast');
@@ -1920,7 +2236,7 @@ async function importFromBrowser(id) {
 // ============================================================
 //  First-run onboarding (shown once)
 // ============================================================
-const ONB_LOGO = '<svg viewBox="0 0 24 24" width="56" height="56" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18" fill="currentColor" opacity="0.55"/></svg>';
+const ONB_LOGO = '<svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.3" opacity="0.5"/><path d="M5.5 15.5C9 17.5 12.5 14 16.5 7.5"/><path d="M12.7 7.6 17 7l-.6 4.2"/><circle cx="8" cy="13.4" r="1.7" fill="currentColor" stroke="none"/></svg>';
 function initOnboarding(immediate) {
   if (INCOGNITO) return;
   let done = false; try { done = localStorage.getItem('cream.onboarded') === '1'; } catch (_) {}
@@ -1929,10 +2245,22 @@ function initOnboarding(immediate) {
   let step = 0;
 
   function welcomeStep(el) {
-    el.innerHTML = '<div class="onb-hero"><div class="onb-logo">' + ONB_LOGO + '</div><h1 class="onb-h">Welcome to Solace</h1><p class="onb-p">A calm, private, beautiful browser. Let’s set it up — it takes about 20 seconds.</p></div>';
+    el.innerHTML = '<div class="onb-hero"><div class="onb-logo">' + ONB_LOGO + '</div><h1 class="onb-h">Welcome to Drift</h1><p class="onb-p">A calm, private, beautiful browser. Let’s set it up — it takes about 20 seconds.</p></div>';
   }
   function appearanceStep(el) {
-    el.innerHTML = '<h2 class="onb-h">Make it yours</h2><p class="onb-p">Pick a mode — tap More for accent colours.</p><div class="onb-modes" id="onbModes"></div><div class="onb-swatches" id="onbSwatches" hidden></div>';
+    const m0 = browserMode();
+    const mBtn = (id, label, desc) => `<button type="button" class="mode-opt${m0 === id ? ' on' : ''}" data-mode="${id}"><span class="mode-opt-t">${label}</span><span class="mode-opt-d">${desc}</span></button>`;
+    el.innerHTML = '<h2 class="onb-h">Make it yours</h2><p class="onb-p">Choose how Drift looks and feels.</p>' +
+      '<div class="onb-sub">Mode</div>' +
+      '<div class="mode-seg" id="onbModeSeg" role="radiogroup" aria-label="Browser mode">' +
+        mBtn('normal', 'Normal', 'Full glass UI') + mBtn('lite', 'Lightweight', 'Fast &amp; plain') + mBtn('minimal', 'Minimal', 'Thin &amp; sleek') +
+      '</div>' +
+      '<div class="onb-sub">Theme</div>' +
+      '<div class="onb-modes" id="onbModes"></div><div class="onb-swatches" id="onbSwatches" hidden></div>';
+    el.querySelectorAll('#onbModeSeg .mode-opt').forEach((b) => b.addEventListener('click', () => {
+      el.querySelectorAll('#onbModeSeg .mode-opt').forEach((x) => x.classList.toggle('on', x === b));
+      setBrowserMode(b.dataset.mode);
+    }));
     const mEl = el.querySelector('#onbModes');
     const sw = el.querySelector('#onbSwatches');
     THEMES.forEach((t) => {
@@ -1961,7 +2289,7 @@ function initOnboarding(immediate) {
   function searchStep(el) {
     el.innerHTML = '<h2 class="onb-h">Search &amp; blocking</h2><p class="onb-p">Choose your search engine and ad blocker.</p>' +
       '<label class="onb-field"><span>Search engine</span><select id="onbSearch"></select></label>' +
-      '<label class="onb-field"><span>Ad blocker</span><select id="onbAdblock"><option value="ublock">uBlock Origin (built in)</option><option value="cream">Solace built-in</option></select></label>';
+      '<label class="onb-field"><span>Ad blocker</span><select id="onbAdblock"><option value="ublock">uBlock Origin (built in)</option><option value="cream">Drift built-in</option></select></label>';
     const ss = el.querySelector('#onbSearch');
     ss.innerHTML = Object.keys(SEARCH_ENGINES).map((k) => '<option value="' + k + '">' + SEARCH_ENGINES[k].name + '</option>').join('');
     ss.value = currentEngine();
@@ -1971,7 +2299,7 @@ function initOnboarding(immediate) {
     ab.addEventListener('change', (e) => { try { window.browserAPI.privacySet({ adblockEngine: e.target.value }); } catch (_) {} });
   }
   function privacyStep(el) {
-    el.innerHTML = '<h2 class="onb-h">Privacy</h2><p class="onb-p">Solace blocks trackers and never tracks you. Optionally wipe data each time you quit.</p><div class="onb-toggles" id="onbPriv"></div>';
+    el.innerHTML = '<h2 class="onb-h">Privacy</h2><p class="onb-p">Drift blocks trackers and never tracks you. Optionally wipe data each time you quit.</p><div class="onb-toggles" id="onbPriv"></div>';
     const pe = el.querySelector('#onbPriv');
     const ce = { history: false, cookies: false, cache: false };
     [['history', 'Clear history on exit'], ['cookies', 'Clear cookies & logins on exit'], ['cache', 'Clear cache on exit']].forEach(([k, label]) => {
@@ -1986,7 +2314,7 @@ function initOnboarding(immediate) {
       '<div class="onb-import" id="onbImport"><div class="onb-muted">Looking for installed browsers…</div></div>' +
       '<div class="onb-imp pw"><div class="onb-imp-name">Passwords <span class="onb-muted">from a CSV export</span></div>' +
       '<button type="button" class="onb-imp-btn" id="onbPwImport">Import CSV…</button></div>' +
-      '<div class="onb-muted" style="margin-top:8px;font-size:11.5px">Tip: in your old browser, export passwords to a CSV file, then pick it here. They’re saved to Solace’s encrypted vault.</div>';
+      '<div class="onb-muted" style="margin-top:8px;font-size:11.5px">Tip: in your old browser, export passwords to a CSV file, then pick it here. They’re saved to Drift’s encrypted vault.</div>';
     const box = el.querySelector('#onbImport');
     el.querySelector('#onbPwImport').addEventListener('click', async (e) => {
       const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Choosing…';
@@ -2008,7 +2336,7 @@ function initOnboarding(immediate) {
     })();
   }
   function doneStep(el) {
-    el.innerHTML = '<div class="onb-hero"><div class="onb-check">✓</div><h1 class="onb-h">You’re all set</h1><p class="onb-p">Enjoy Solace. You can change anything later in Settings.</p></div>';
+    el.innerHTML = '<div class="onb-hero"><div class="onb-check">✓</div><h1 class="onb-h">You’re all set</h1><p class="onb-p">Enjoy Drift. You can change anything later in Settings.</p></div>';
   }
   const STEPS = [welcomeStep, appearanceStep, searchStep, privacyStep, importStep, doneStep];
 
@@ -2098,10 +2426,13 @@ function init() {
   // Sidebar rail
   $('sidebarToggle').addEventListener('click', toggleSidebar);
   $('railNewTab').addEventListener('click', () => { createTab(); focusOmnibox(); });
+  $('vbarNewTab').addEventListener('click', () => { createTab(); focusOmnibox(); });
   $('railBookmarks').addEventListener('click', () => { setBookmarksBarHidden(!document.body.classList.contains('bookmarks-hidden')); updateRailActive(); });
   $('railHistory').addEventListener('click', toggleHistory);
   $('railAI').addEventListener('click', openAITab);
   $('railSettings').addEventListener('click', () => openSettings());
+  Object.keys(RAIL_HIDEABLE).forEach((id) => { const b = $(id); if (b) b.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); showRailMenu(e.clientX, e.clientY, id); }); });
+  applyHiddenRail();
 
   // Sidebar quick-access sites + per-site ad blocker
   $('railAddSite').addEventListener('click', toggleAddSite);
@@ -2114,8 +2445,19 @@ function init() {
   document.addEventListener('click', (e) => {
     if (addSitePopOpen && !addSitePop.contains(e.target) && e.target.closest('#railAddSite') === null) closeAddSite();
     if (adblockPopOpen && !adblockPop.contains(e.target) && e.target.closest('#adblockBtn') === null) closeAdblock();
+    if (addAppPopOpen && !$('addAppPop').contains(e.target) && e.target.closest('#railAddApp') === null) closeAddApp();
   });
   renderSidebarSites();
+
+  // Web apps (pinned apps + slide-out panel)
+  $('railAddApp').addEventListener('click', (e) => { e.stopPropagation(); toggleAddApp(); });
+  $('addAppBtn').addEventListener('click', submitAddApp);
+  $('addAppName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addAppUrl').focus(); });
+  $('addAppUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitAddApp(); });
+  $('appPanelClose').addEventListener('click', closeAppPanel);
+  $('appPanelReload').addEventListener('click', () => { const w = appPanelActiveWv(); if (w) try { w.reload(); } catch (_) {} });
+  $('appPanelTab').addEventListener('click', () => { const a = webApps.find((x) => x.id === appCurrentId); if (a) { createTab(a.url); closeAppPanel(); } });
+  renderWebApps();
 
   // Settings page
   $('settingsClose').addEventListener('click', closeSettings);
@@ -2165,6 +2507,11 @@ function init() {
       document.documentElement.style.setProperty('--glass', String(Math.min(0.92, (Number(savedBlur) || 0) / 40 * 0.9)));
     }
     if (localStorage.getItem('cream.noSidebar') === '1') document.body.classList.add('no-sidebar');
+    if (verticalTabsOn()) setVerticalTabs(true);
+    if (vbarAutohideOn()) setVbarAutohide(true);
+    if (centerUrlOn()) setCenterUrl(true);
+    applyGlassLevel();
+    if (acrylicOn()) setAcrylicMode(true);
     const tbh = localStorage.getItem('cream.titlebarH');
     if (tbh) document.documentElement.style.setProperty('--titlebar-h', tbh + 'px');
   } catch (_) {}

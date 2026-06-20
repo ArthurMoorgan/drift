@@ -1,6 +1,6 @@
-# Solace — a calm, private, beautiful web browser
+# Drift — a calm, private, beautiful web browser
 
-Solace is a polished, liquid-glass desktop web browser built on **Electron** with a real **Chromium** engine. It pairs a warm, distraction-free design with genuinely useful privacy tools: built-in ad blocking, an encrypted password vault with autofill, and a private AI assistant that uses your own key.
+Drift is a polished, liquid-glass desktop web browser built on **Electron** with a real **Chromium** engine. It pairs a warm, distraction-free design with genuinely useful privacy tools: built-in ad blocking, an encrypted password vault with autofill, and a private AI assistant that uses your own key.
 
 ![stack](https://img.shields.io/badge/Electron-Chromium-c2703d) ![style](https://img.shields.io/badge/design-liquid--glass-efe4cf) ![platform](https://img.shields.io/badge/platform-Windows-555) ![license](https://img.shields.io/badge/license-MIT-2faa5a)
 
@@ -49,18 +49,18 @@ npm run dist    # installer + portable  → dist/
 
 `npm run dist` auto-increments the patch version and ensures uBlock Origin is present, then produces:
 
-- `Solace Setup <version>.exe` — the installer (upgrades in place, keeps user data)
-- `Solace-<version>-portable.exe` — a single-file portable build
+- `Drift Setup <version>.exe` — the installer (upgrades in place, keeps user data)
+- `Drift-<version>-portable.exe` — a single-file portable build
 
 To rebrand the app icon, replace [`build/icon.svg`](build/icon.svg) and run `npm run make-icon`.
 
 ---
 
-## Cream AI / Solace AI — bring your own key
+## Cream AI / Drift AI — bring your own key
 
-The new-tab page has a built-in **Claude** assistant. Click **Ask Solace AI**, paste your Anthropic API key once, and chat — replies stream in token-by-token.
+The new-tab page has a built-in **Claude** assistant. Click **Ask Drift AI**, paste your Anthropic API key once, and chat — replies stream in token-by-token.
 
-- **Your key stays private.** It's stored only in the app's user-data folder (`%APPDATA%/Solace`), and every API call runs in Electron's **main process**. The key is never exposed to any web page or renderer; the new-tab AI bridge is URL-locked and the main process re-validates the sender on every call.
+- **Your key stays private.** It's stored only in the app's user-data folder (`%APPDATA%/Drift`), and every API call runs in Electron's **main process**. The key is never exposed to any web page or renderer; the new-tab AI bridge is URL-locked and the main process re-validates the sender on every call.
 - **Default model:** `claude-opus-4-8` (switchable to Sonnet / Haiku in Settings).
 - **Get a key:** [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
 
@@ -100,7 +100,7 @@ solace/
    ├─ index.html        # browser chrome structure
    ├─ chrome.css        # the liquid-glass design system + all themes
    ├─ chrome.js         # tabs, omnibox, bookmarks, history, settings, passwords…
-   ├─ newtab.html       # animated start page + Solace AI assistant
+   ├─ newtab.html       # animated start page + Drift AI assistant
    ├─ newtab-preload.js # URL-guarded AI bridge + password autofill (isolated world)
    └─ backgrounds/      # flat-design SVG new-tab backgrounds
 ```
@@ -109,6 +109,6 @@ solace/
 
 ## License
 
-[MIT](LICENSE) © Solace. Bundled uBlock Origin is © Raymond Hill and licensed separately under the GPLv3.
+[MIT](LICENSE) © Drift. Bundled uBlock Origin is © Raymond Hill and licensed separately under the GPLv3.
 
 Built with the help of [Claude Code](https://claude.com/claude-code).

@@ -10,7 +10,7 @@
  *
  * Extraction uses PowerShell's Expand-Archive (this project targets Windows).
  * The script never fails the install/build — if the download can't complete,
- * it warns and exits 0; Solace still runs, just without the bundled blocker
+ * it warns and exits 0; Drift still runs, just without the bundled blocker
  * until you run `npm run fetch-ublock` again.
  */
 
@@ -59,7 +59,7 @@ function download(url, dest, redirects) {
     else console.warn('Warning: extracted but manifest.json not found at ' + EXT_DIR);
   } catch (e) {
     console.warn('Could not fetch uBlock Origin (' + (e && e.message) + ').');
-    console.warn('Solace will run without the bundled ad-blocker until you run: npm run fetch-ublock');
+    console.warn('Drift will run without the bundled ad-blocker until you run: npm run fetch-ublock');
   }
   process.exit(0);
 })();

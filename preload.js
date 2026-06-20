@@ -8,13 +8,14 @@ contextBridge.exposeInMainWorld('browserAPI', {
   toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),
   close: () => ipcRenderer.send('window:close'),
   isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+  setAcrylic: (on) => ipcRenderer.send('window:set-acrylic', !!on),
   newIncognito: () => ipcRenderer.send('window:new-incognito'),
 
   onMaximizeChange: (cb) => ipcRenderer.on('window:maximized', (_e, val) => cb(val)),
   onOpenTab: (cb) => ipcRenderer.on('open-tab', (_e, url) => cb(url)),
   onShortcut: (cb) => ipcRenderer.on('shortcut', (_e, action) => cb(action)),
 
-  // Solace AI config (managed from the Settings page; chat itself lives on the new-tab page)
+  // Drift AI config (managed from the Settings page; chat itself lives on the new-tab page)
   getAIConfig: () => ipcRenderer.invoke('ai:get-config'),
   setAIKey: (key) => ipcRenderer.invoke('ai:set-key', key),
   clearAIKey: () => ipcRenderer.invoke('ai:clear-key'),

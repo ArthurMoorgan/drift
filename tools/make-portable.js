@@ -1,8 +1,8 @@
 'use strict';
 
 /*
- * Builds a fully self-contained, portable Solace app — offline, no electron-builder,
- * no downloads. Output: dist/Solace-portable/Solace.exe (double-click to run).
+ * Builds a fully self-contained, portable Drift app — offline, no electron-builder,
+ * no downloads. Output: dist/Drift-portable/Drift.exe (double-click to run).
  *
  * It copies the Electron runtime already in node_modules, drops our app into
  * resources/app, and bundles the runtime dependencies. Re-run any time with:
@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const out = path.join(root, 'dist', 'Solace-portable');
+const out = path.join(root, 'dist', 'Drift-portable');
 const electronDist = path.join(root, 'node_modules', 'electron', 'dist');
 
 // Build-only packages that are never required at runtime — skip to keep it lean.
@@ -33,7 +33,7 @@ fs.mkdirSync(out, { recursive: true });
 
 console.log('Copying Electron runtime...');
 cp(electronDist, out);
-fs.renameSync(path.join(out, 'electron.exe'), path.join(out, 'Solace.exe'));
+fs.renameSync(path.join(out, 'electron.exe'), path.join(out, 'Drift.exe'));
 fs.rmSync(path.join(out, 'resources', 'default_app.asar'), { force: true });
 
 console.log('Adding app files...');
@@ -54,4 +54,4 @@ for (const entry of fs.readdirSync(nm)) {
 }
 console.log(`  deps copied: ${copied}, build-only skipped: ${skipped}`);
 
-console.log('\nDone. Standalone app: ' + path.join(out, 'Solace.exe'));
+console.log('\nDone. Standalone app: ' + path.join(out, 'Drift.exe'));

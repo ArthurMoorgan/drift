@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: http:; connect-src 'self' https://geocoding-api.open-meteo.com https://api.open-meteo.com;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https: http:; connect-src 'self' https://geocoding-api.open-meteo.com https://api.open-meteo.com;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>New Tab</title>
   <script>
@@ -27,6 +27,9 @@
         if (/^#?[0-9a-f]{6}$/i.test(ac)) curAccent = ac[0] === '#' ? ac : '#' + ac;
         var d = document.documentElement;
         if (p.get('lite') === '1') d.classList.add('lite', 'no-anim');
+        if (p.get('minimal') === '1') d.classList.add('minimal');
+        if (p.get('glass') === '1') { d.classList.add('glass'); var _gl = parseInt(p.get('glasslvl') || '', 10); if (!isNaN(_gl)) { var _t = Math.min(92, Math.max(8, 100 - _gl)); d.style.setProperty('--glass-tint', _t + '%'); d.style.setProperty('--glass-tint-strong', Math.min(96, _t + 24) + '%'); } }
+        window.__driftSetGlass = function (lvl) { var t = Math.min(92, Math.max(8, 100 - lvl)); var s = document.documentElement.style; s.setProperty('--glass-tint', t + '%'); s.setProperty('--glass-tint-strong', Math.min(96, t + 24) + '%'); };
         if (p.get('anim') === '0') d.classList.add('no-anim');
         if (p.get('incognito') === '1') d.classList.add('incognito');
       } catch (e) {}
@@ -47,10 +50,16 @@
       window.__creamSetAccent = function (hexv) { if (/^#?[0-9a-f]{6}$/i.test(hexv || '')) { curAccent = hexv[0] === '#' ? hexv : '#' + hexv; applyAccent(); } };
     })();
   </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
   <style>
+    /* Self-hosted fonts — always crisp, offline, no third-party request. */
+    @font-face {
+      font-family: "Inter"; font-style: normal; font-weight: 400 700; font-display: swap;
+      src: url("fonts/inter.woff2") format("woff2");
+    }
+    @font-face {
+      font-family: "Fraunces"; font-style: normal; font-weight: 500 600; font-display: swap;
+      src: url("fonts/fraunces.woff2") format("woff2");
+    }
     :root {
       --text-1: #3a342a; --text-2: #7c7361; --text-3: #a89d85;
       --accent: #c2703d; --accent-deep: #a85a2c;
@@ -325,7 +334,7 @@
     .go svg { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
     .go:hover svg { transform: translateX(3px); }
 
-    /* ===================== Solace AI ===================== */
+    /* ===================== Drift AI ===================== */
     .ai { width: min(680px, 94vw); display: flex; flex-direction: column; align-items: center; }
 
     .ai-launch {
@@ -424,6 +433,35 @@
       .ai-panel { animation: none !important; }
       * { transition-duration: 0.01ms !important; }
     }
+
+    /* ===== Minimal mode: a calm, zero-distraction start page ===== */
+    html.minimal .blob { display: none; }
+    html.minimal .clock,
+    html.minimal .links,
+    html.minimal .widgets,
+    html.minimal .ai,
+    html.minimal .footer { display: none !important; }
+    html.minimal body { background: var(--bg-a); }
+    html.minimal .wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 0; }
+    html.minimal .lite-logo { display: block; margin-bottom: 22px; opacity: 0.92; }
+    html.minimal .search { width: min(560px, 86vw); margin: 0; }
+
+    /* ===== Glass theme: the start page goes transparent so the blurred desktop shows
+       through; the search box, dock tiles and AI card float as readable glass panels. ===== */
+    html.glass { background: transparent !important; }
+    html.glass body { background: color-mix(in srgb, var(--bg-a) var(--glass-tint, 46%), transparent) !important; }
+    html.glass .blob { display: none; }
+    html.glass .search,
+    html.glass .ai-launch,
+    html.glass .ai-panel,
+    html.glass .widget,
+    html.glass .links .link {
+      background: color-mix(in srgb, var(--card) var(--glass-tint-strong, 70%), transparent) !important;
+      backdrop-filter: blur(14px) saturate(1.2);
+      -webkit-backdrop-filter: blur(14px) saturate(1.2);
+      border: 1px solid color-mix(in srgb, var(--border-light) 60%, transparent);
+    }
+    html.glass .time, html.glass .meta, html.glass .lite-logo, html.glass .footer { text-shadow: 0 1px 10px rgba(0,0,0,0.35); }
   </style>
 </head>
 <body>
@@ -433,10 +471,10 @@
   <div class="blob b4"></div>
 
   <div class="wrap">
-    <div class="lite-logo enter d1" aria-hidden="true">Solace</div>
+    <div class="lite-logo enter d1" aria-hidden="true">Drift</div>
     <div class="private-banner enter d1">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11h18"/><path d="M6 11l1.4-4.3A2 2 0 0 1 9.3 5.3h5.4a2 2 0 0 1 1.9 1.4L18 11"/><circle cx="7.5" cy="15" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></svg>
-      <div class="pb-text"><b>You're browsing privately.</b> Solace won't save your history, cookies, or site data from this window.</div>
+      <div class="pb-text"><b>You're browsing privately.</b> Drift won't save your history, cookies, or site data from this window.</div>
     </div>
     <div class="clock enter d1">
       <div class="time" id="time">--:--</div>
@@ -456,7 +494,7 @@
     <section class="ai enter d4" id="ai">
       <button class="ai-launch" id="aiLaunch">
         <span class="spark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/></svg></span>
-        <span>Ask Solace AI</span>
+        <span>Ask Drift AI</span>
         <span class="sub">your built-in assistant</span>
       </button>
 
@@ -464,7 +502,7 @@
         <header class="ai-head">
           <div class="ai-title">
             <span class="spark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/></svg></span>
-            Solace AI
+            Drift AI
           </div>
           <div class="ai-head-actions">
             <button class="ai-chip" id="aiModelChip" title="Change model">Opus 4.8</button>
@@ -474,14 +512,14 @@
         </header>
         <div class="ai-body" id="aiBody"></div>
         <form class="ai-input" id="aiForm">
-          <textarea id="aiText" rows="1" placeholder="Ask anything…" aria-label="Message Solace AI"></textarea>
+          <textarea id="aiText" rows="1" placeholder="Ask anything…" aria-label="Message Drift AI"></textarea>
           <button type="submit" class="ai-send" id="aiSend" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
         </form>
       </div>
     </section>
   </div>
 
-  <div class="footer">Solace — your calm corner of the web</div>
+  <div class="footer">Drift — your calm corner of the web</div>
 
   <script>
     /* ---------------- Custom background ---------------- */
@@ -649,13 +687,13 @@
       render();
     }
 
-    /* Solace AI can be disabled in Settings (passed as ?ai=0) */
+    /* Drift AI can be disabled in Settings (passed as ?ai=0) */
     if (new URLSearchParams(location.search).get('ai') === '0') {
       var aiSecEl = document.getElementById('ai'); if (aiSecEl) aiSecEl.style.display = 'none';
     }
 
     /* ====================================================
-       Solace AI assistant
+       Drift AI assistant
        ==================================================== */
     var AI = window.creamAI || null;
     var SHORT = { 'claude-opus-4-8': 'Opus 4.8', 'claude-sonnet-4-6': 'Sonnet 4.6', 'claude-haiku-4-5': 'Haiku 4.5' };
@@ -715,7 +753,7 @@
     function renderUnavailable() {
       elForm.style.display = 'none';
       elBody.innerHTML = '<div class="ai-empty"><span class="spark">' + SPARK + '</span>'
-        + 'Solace AI runs inside the Solace browser app.</div>';
+        + 'Drift AI runs inside the Drift browser app.</div>';
     }
 
     function renderSetup(msg) {
@@ -724,7 +762,7 @@
       var v = document.createElement('div'); v.className = 'ai-form-view';
       v.innerHTML =
         '<h3>Connect Claude</h3>'
-        + '<p>Solace AI uses your Anthropic API key. It is stored locally on this device and used only for your chats — it never appears in any web page.</p>'
+        + '<p>Drift AI uses your Anthropic API key. It is stored locally on this device and used only for your chats — it never appears in any web page.</p>'
         + (msg ? '<p class="ai-note" style="color:#c0492f">' + esc(msg) + '</p>' : '')
         + '<div class="ai-field"><input id="aiKey" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false"></div>'
         + '<div class="ai-row"><a class="ai-link" id="aiGetKey" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get an API key →</a>'

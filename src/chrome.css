@@ -1,10 +1,27 @@
 /* ============================================================
-   Solace — liquid-glass browser chrome
+   Drift — liquid-glass browser chrome
    Light · minimal · warm cream · frosted glass
    ============================================================ */
 
+/* Self-hosted fonts — bundled so they always render crisply,
+   offline and in any region, with no third-party (Google) request. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/inter.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 500 600;
+  font-display: swap;
+  src: url("fonts/fraunces.woff2") format("woff2");
+}
+
 :root {
-  /* Solace surfaces */
+  /* Drift surfaces */
   --bg-1: #f8f2e4;
   --bg-2: #efe4cf;
   --surface: rgba(255, 252, 244, 0.62);
@@ -569,7 +586,7 @@ body.is-dark .theme-btn .ico-moon { display: none; }
 .content-col { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
 
 .sidebar {
-  flex: 0 0 46px; width: 46px;
+  flex: 0 0 40px; width: 40px;
   display: flex; flex-direction: column; align-items: center; gap: 5px;
   padding: 6px 0 12px;
   overflow: hidden;
@@ -593,6 +610,203 @@ body.sidebar-collapsed .sidebar { flex-basis: 0; width: 0; padding-top: 0; paddi
 .rail-spacer { flex: 1 1 auto; }
 .sidebar-toggle svg { width: 18px; height: 18px; }
 body.bookmarks-hidden .bookmarks-bar { display: none; }
+
+/* ===================== Vertical tabs (solid, single full-height rail) ===================== */
+.vbar { display: none; }
+body.vtabs .vbar {
+  display: flex; flex-direction: column; box-sizing: border-box;
+  flex: 0 0 var(--vbar-w, 240px); width: var(--vbar-w, 240px); min-width: 0;
+  background: var(--surface-solid);            /* solid — no glass/blur */
+  border-right: 1px solid var(--border);
+  padding: 8px; gap: 8px; overflow: hidden;
+}
+/* In vertical mode the icon sidebar is removed and the top toolbar is empty
+   (its parts are relocated into the rail). The rail is the whole left panel. */
+body.vtabs .sidebar { display: none; }
+body.vtabs .toolbar { display: none; }
+body.vtabs .new-tab-btn { display: none; }   /* titlebar +; the rail has its own */
+
+/* All rail slots are full width and clip their own overflow */
+body.vtabs .vbar-nav,
+body.vtabs .vbar-omni,
+body.vtabs .vbar-pins,
+body.vtabs .vbar-foot { width: 100%; min-width: 0; box-sizing: border-box; }
+
+/* Nav row */
+.vbar-nav { display: flex; align-items: center; gap: 2px; }
+body.vtabs .vbar-nav .nav-group { display: flex; gap: 2px; }
+body.vtabs .vbar-nav .icon-btn { width: 30px; height: 30px; }
+
+/* Address bar — make the input shrink so the star button stays inside the rail */
+body.vtabs #omnibox { flex: none; width: 100%; min-width: 0; max-width: none; box-sizing: border-box; }
+body.vtabs #omnibox #address { flex: 1 1 auto; min-width: 0; }
+body.vtabs #omnibox .star-btn { flex: 0 0 auto; }
+
+/* Pinned apps + quick sites — a wrapping tile row */
+.vbar-pins:empty { display: none; }
+body.vtabs .vbar-pins { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+body.vtabs .vbar-pins .rail-apps,
+body.vtabs .vbar-pins .rail-sites { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; width: auto; }
+body.vtabs .vbar-pins .rail-btn { width: 32px; height: 32px; flex: 0 0 32px; }
+
+/* New-tab button */
+.vbar-newtab {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 7px 10px; border: none; border-radius: 9px;
+  background: transparent; color: var(--text-2);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-align: left;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.vbar-newtab svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.vbar-newtab:hover { background: var(--hover); color: var(--text-1); }
+
+/* Vertical tab list */
+.vbar-tabs { flex: 1 1 auto; min-height: 0; width: 100%; overflow-y: auto; overflow-x: hidden; }
+.vbar-tabs::-webkit-scrollbar { width: 8px; }
+.vbar-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+body.vtabs #tabstrip { display: flex; flex-direction: column; gap: 2px; width: 100%; height: auto; padding: 0; overflow: visible; }
+body.vtabs .tab {
+  width: 100%; min-width: 0; max-width: none; height: auto; flex: 0 0 auto;
+  padding: 7px 9px; border-radius: 9px; gap: 9px;
+  display: flex; align-items: center; background: transparent; border: none; margin: 0;
+}
+body.vtabs .tab::after { display: none; }
+body.vtabs .tab:hover { background: var(--hover); }
+body.vtabs .tab.active { background: var(--accent-soft); color: var(--accent); }
+body.vtabs .tab .tab-title { flex: 1 1 auto; min-width: 0; }
+body.vtabs .tab .tab-close { flex: 0 0 auto; opacity: 0; }
+body.vtabs .tab:hover .tab-close,
+body.vtabs .tab.active .tab-close { opacity: 1; }
+
+/* Foot toolbar — relocated tools + AI + settings, wrapping */
+.vbar-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding-top: 6px; border-top: 1px solid var(--border); }
+body.vtabs .vbar-foot .action-group { display: contents; }   /* let its buttons flow into the wrap */
+body.vtabs .vbar-foot .icon-btn,
+body.vtabs .vbar-foot .rail-btn { width: 30px; height: 30px; flex: 0 0 30px; }
+
+/* ---- Auto-hide: rail collapses to a sliver, slides out on hover ---- */
+body.vtabs.vbar-autohide .body-row { position: relative; }
+body.vtabs.vbar-autohide .vbar {
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 60;
+  transform: translateX(calc(-100% + 7px));
+  transition: transform 0.26s var(--ease);
+  box-shadow: 6px 0 26px rgba(0, 0, 0, 0.16);
+}
+body.vtabs.vbar-autohide .vbar:hover,
+body.vtabs.vbar-autohide .vbar:focus-within { transform: none; }
+body.vtabs.vbar-autohide .vbar::before {     /* thin grab hint at the screen edge */
+  content: ''; position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 46px; border-radius: 3px; background: var(--accent); opacity: 0.5;
+}
+body.vtabs.vbar-autohide .vbar:hover::before { opacity: 0; }
+
+/* ===================== Web apps (rail launcher + slide-out panel) ===================== */
+.rail-apps { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100%; }
+.rail-app { position: relative; }
+.rail-app .rail-app-ic {
+  width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center;
+  background: var(--app-col, var(--accent)); color: #fff; font-size: 12px; font-weight: 700; line-height: 1;
+}
+.rail-app.active { background: var(--accent-soft); }
+.rail-app.active::before { content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%); width: 3px; height: 18px; border-radius: 2px; background: var(--accent); }
+
+.apppanel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 90;
+  width: min(420px, 46vw); display: flex; flex-direction: column;
+  background: var(--surface-solid);                 /* solid — never blur over a live webview */
+  border-left: 1px solid var(--border);
+  box-shadow: -18px 0 50px rgba(0, 0, 0, 0.22);
+  transform: translateX(100%); transition: transform 0.32s var(--ease);
+  pointer-events: none;
+}
+body.apppanel-open .apppanel { transform: none; pointer-events: auto; }
+.apppanel-head { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--border); }
+.apppanel-ico { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700; flex: 0 0 auto; }
+.apppanel-title { flex: 1 1 auto; font-weight: 600; font-size: 13px; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apppanel-head .icon-btn { width: 30px; height: 30px; flex: 0 0 auto; }
+.apppanel-body { flex: 1 1 auto; position: relative; min-height: 0; }
+.apppanel-body webview { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* ===================== Minimal mode — zero-distraction UI ===================== */
+html.minimal { --titlebar-h: 32px; }
+html.minimal .sidebar { display: none; }                  /* no left rail */
+html.minimal .bookmarks-bar { display: none; }            /* no bookmarks strip */
+html.minimal .brand-name { display: none; }               /* logo only, no wordmark */
+html.minimal .toolbar { padding: 3px 12px 6px; gap: 6px; }
+html.minimal .icon-btn { width: 28px; height: 28px; border-radius: 8px; }
+html.minimal .icon-btn svg { width: 17px; height: 17px; }
+/* Centered, pill address bar — the clean Helium look */
+html.minimal .omnibox { height: 30px; border-radius: 9px; padding: 0 12px; background: var(--surface-strong); box-shadow: none; }
+html.minimal #omnibox #address { text-align: center; }
+html.minimal #omnibox .star-btn { opacity: 0.65; }
+/* Keep only the essentials on the bar — everything else lives in the ⋯ menu */
+html.minimal #adblockBtn, html.minimal #dlBtn, html.minimal #zoomBtn,
+html.minimal #snipBtn, html.minimal #historyBtn, html.minimal #homeBtn,
+html.minimal #extBtn, html.minimal #themeBtn { display: none; }   /* all folded into the ⋯ menu */
+html.minimal .titlebar { box-shadow: none; }
+html.minimal .tab { padding-top: 3px; padding-bottom: 3px; }
+html.minimal .new-tab-btn { width: 28px; height: 28px; }
+/* If vertical tabs are also on, keep the rail (it holds the essentials) but slimmer */
+html.minimal body.vtabs .vbar { --vbar-w: 220px; }
+
+/* ===================== Center the address-bar text ===================== */
+body.center-url #omnibox #address { text-align: center; }
+
+/* ===================== Mode segmented control (settings + onboarding) ===================== */
+.mode-seg { display: flex; gap: 8px; margin: 4px 8px 10px; }
+.mode-opt {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
+  padding: 10px 12px; border-radius: 12px; cursor: pointer; text-align: left;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-1); font: inherit;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.mode-opt:hover { border-color: var(--accent-ring); }
+.mode-opt.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.mode-opt-t { font-weight: 600; font-size: 13.5px; }
+.mode-opt-d { font-size: 11.5px; color: var(--text-3); line-height: 1.3; }
+.onb-sub { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 14px 4px 6px; text-align: left; }
+
+/* Sleeping (discarded) tabs — dimmed to show they've been freed from memory */
+.tab.discarded { opacity: 0.5; }
+.tab.discarded .tab-favicon { filter: grayscale(0.6); }
+
+/* Zoom row inside the ⋯ menu */
+.menu-zoom { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 12px 8px; }
+.menu-zoom-label { font-size: 13px; color: var(--text-1); }
+.menu-zoom-ctrl { display: flex; align-items: center; gap: 4px; }
+.menu-zoom-ctrl button { min-width: 30px; height: 26px; padding: 0 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-1); border-radius: 7px; cursor: pointer; font: inherit; font-size: 13px; }
+.menu-zoom-ctrl button:hover { background: var(--hover); }
+.menu-zoom-ctrl #mzVal { min-width: 48px; font-variant-numeric: tabular-nums; }
+
+/* ===================== Acrylic / translucent window (Windows 11) ===================== */
+/* The window backdrop is set to 'acrylic' in the main process; here we make the chrome
+   surfaces translucent so the blurred desktop shows through (the web page stays opaque). */
+html.acrylic, html.acrylic body, html.acrylic #app,
+html.acrylic .body-row, html.acrylic .content-col, html.acrylic .views { background: transparent !important; }
+/* Glass theme — the whole browser goes translucent over the blurred desktop.
+   Translucency is driven by --glass-tint / --glass-tint-strong (set from the
+   Settings slider); surfaces keep just enough body to stay readable. */
+html.acrylic .titlebar,
+html.acrylic .toolbar,
+html.acrylic .bookmarks-bar,
+html.acrylic .sidebar,
+html.acrylic .vbar { background: color-mix(in srgb, var(--surface-solid) var(--glass-tint, 46%), transparent); }
+/* The active tab + omnibox keep more body so controls read clearly */
+html.acrylic .omnibox,
+html.acrylic .tab.active { background: color-mix(in srgb, var(--surface-strong) var(--glass-tint-strong, 70%), transparent); }
+/* let the tab webviews composite transparently so a transparent page (the new tab)
+   reveals the window's glass; opaque sites paint their own background as normal.
+   !important + .views specificity beats the per-theme `.views webview { background:#000 }`. */
+html.acrylic .views webview { background: transparent !important; }
+/* In glass mode drop the content "card" framing — margin, rounded border, inset
+   outline and shadow — so the page sits flush with no stray outline. */
+html.acrylic .views { margin: 0; border-radius: 0; box-shadow: none; }
+
+/* Glass translucency slider (settings) */
+.glass-slider { display: flex; align-items: center; gap: 10px; }
+.glass-slider input[type="range"] { -webkit-appearance: none; appearance: none; width: 150px; height: 6px; border-radius: 6px; background: var(--border); outline: none; cursor: pointer; }
+.glass-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--surface-solid); box-shadow: var(--shadow-sm); }
+.glass-slider #glassVal { font-size: 12px; color: var(--text-3); min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ===================== Settings page ===================== */
 .settings-overlay {
@@ -980,6 +1194,7 @@ body.no-sidebar #sidebarToggle { display: none; }
 .addsite-pop input:focus { border-color: var(--accent-deep); }
 
 /* Toolbar customize context menu (right-click) */
+.ctx-backdrop { position: fixed; inset: 0; z-index: 79; background: transparent; }
 .ctx-menu {
   position: fixed; z-index: 80; min-width: 200px; padding: 6px;
   background: var(--surface-strong); border: 1px solid var(--border-light); border-radius: 12px;
@@ -1029,7 +1244,7 @@ html.lite .tab, html.lite .tab.active, html.lite .menu-dropdown, html.lite .zoom
 html.lite .settings-overlay, html.lite .history-panel, html.lite .downloads-panel, html.lite .ctx-menu {
   backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
 }
-/* Lightweight = plain, unbranded, Chrome-like: drop the Solace logo from the top bar. */
+/* Lightweight = plain, unbranded, Chrome-like: drop the Drift logo from the top bar. */
 html.lite .brand { display: none; }
 /* Lightweight mode is a plain, minimal browser — no sidebar rail. */
 html.lite .sidebar, html.lite .sidebar-toggle { display: none; }

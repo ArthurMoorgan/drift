@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Preload for the Solace new-tab page ONLY.
+ * Preload for the Drift new-tab page ONLY.
  *
  * This preload is attached to every browsing <webview>, but it exposes the AI
  * bridge exclusively when the loaded document is the trusted local new-tab page

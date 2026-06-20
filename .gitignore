@@ -16,3 +16,7 @@ Thumbs.db
 # Local runtime data (never in the project tree, but just in case)
 cream-settings.json
 cream-vault.dat
+
+# local verification artifacts
+verify-*.js
+scratch-*.png

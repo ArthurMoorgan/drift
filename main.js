@@ -8,10 +8,10 @@ const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 
-// Fix the app identity to "Solace" so the OS, window title, and userData path are
+// Fix the app identity to "Drift" so the OS, window title, and userData path are
 // deterministic regardless of how the app is launched (dev, portable, or installed).
-try { app.setName('Solace'); } catch (_) {}
-try { app.setAppUserModelId('com.solace.app'); } catch (_) {}
+try { app.setName('Drift'); } catch (_) {}
+try { app.setAppUserModelId('com.drift.app'); } catch (_) {}
 
 // Window/taskbar icon (bundled with the app so it shows in the portable build too).
 const APP_ICON = path.join(__dirname, 'src', 'icon.png');
@@ -32,6 +32,10 @@ function hardenWindow(win) {
   });
 }
 
+// Harden + ad-block EVERY session as it is created — including the per-app
+// partitions (persist:app-*) used by the web-app slide-out panel.
+try { app.on('session-created', (ses) => { try { applyWebRequestTo(ses); } catch (_) {} }); } catch (_) {}
+
 // Anthropic SDK (CommonJS interop — class may be default or named export).
 let Anthropic = null;
 try {
@@ -48,7 +52,7 @@ const chromeWindows = new Set();
 const INCOGNITO_PARTITION = 'incognito'; // no "persist:" => in-memory, ephemeral
 
 // ---------------------------------------------------------------------------
-//  Solace AI (Claude, bring-your-own-key) — all calls run here in the main
+//  Drift AI (Claude, bring-your-own-key) — all calls run here in the main
 //  process so the API key is never exposed to any renderer or web page.
 // ---------------------------------------------------------------------------
 const AI_MODELS = [
@@ -56,9 +60,9 @@ const AI_MODELS = [
   { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 · balanced' },
   { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 · fastest' },
 ];
-const AI_DEFAULT_MODEL = 'claude-opus-4-8';
+const AI_DEFAULT_MODEL = 'claude-haiku-4-5';
 const AI_SYSTEM_PROMPT =
-  "You are Solace, a warm and concise AI assistant built into the Solace web browser's " +
+  "You are Drift, a warm and concise AI assistant built into the Drift web browser's " +
   'new-tab page. Help the user with quick questions, explanations, writing, planning, and ideas. ' +
   'Answer directly and concisely — skip preamble and filler. Prefer short paragraphs and compact ' +
   'lists. Use fenced code blocks for code. Respond only with your final answer; do not narrate your reasoning.';
@@ -85,6 +89,7 @@ function loadSettings() {
       uboDefaultApplied: !!raw.uboDefaultApplied,
       defaultAskedAt: Number(raw.defaultAskedAt) || 0,
       dnt: raw.dnt !== false,
+      acrylic: !!raw.acrylic,
       adblockAllow: Array.isArray(raw.adblockAllow) ? raw.adblockAllow : [],
       clearExit: (raw.clearExit && typeof raw.clearExit === 'object')
         ? { history: !!raw.clearExit.history, cookies: !!raw.clearExit.cookies, cache: !!raw.clearExit.cache }
@@ -132,7 +137,8 @@ function createWindow() {
     icon: APP_ICON,
     frame: false,                 // frameless: we draw our own chrome
     titleBarStyle: 'hidden',
-    backgroundColor: '#F3ECDD',   // cream — avoids white flash on launch
+    backgroundColor: settings.acrylic ? '#00000000' : '#F3ECDD',   // cream avoids white flash; transparent enables acrylic
+    backgroundMaterial: settings.acrylic ? 'acrylic' : 'none',     // Win11 backdrop, set at creation for reliability
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -168,6 +174,15 @@ ipcMain.on('window:toggle-maximize', (e) => {
 });
 ipcMain.on('window:close', (e) => { const w = senderWin(e); if (w) w.close(); });
 ipcMain.handle('window:is-maximized', (e) => { const w = senderWin(e); return w ? w.isMaximized() : false; });
+// Windows 11 acrylic/mica backdrop — lets the desktop blur through the chrome (Zen-style).
+ipcMain.on('window:set-acrylic', (e, on) => {
+  const w = senderWin(e); if (!w) return;
+  settings.acrylic = !!on; try { saveSettings(); } catch (_) {}   // so it's applied at creation next launch
+  try {
+    if (on) { w.setBackgroundColor('#00000000'); w.setBackgroundMaterial('acrylic'); }
+    else { w.setBackgroundMaterial('none'); w.setBackgroundColor('#F3ECDD'); }
+  } catch (_) {}   // non-Windows / unsupported: silently ignore
+});
 
 // ---- Incognito window (genuine private browsing: ephemeral in-memory session) ----
 const incognitoDlAttached = new Set();
@@ -205,7 +220,7 @@ function createIncognitoWindow() {
 }
 ipcMain.on('window:new-incognito', () => createIncognitoWindow());
 
-// ---- Solace AI IPC (validated to the trusted new-tab page) ----
+// ---- Drift AI IPC (validated to the trusted new-tab page) ----
 ipcMain.handle('ai:get-config', (event) => {
   if (!isTrustedAISender(event)) return { unauthorized: true, models: AI_MODELS };
   return { hasKey: !!settings.apiKey, model: settings.model || AI_DEFAULT_MODEL, models: AI_MODELS, sdk: !!Anthropic };
@@ -504,7 +519,7 @@ ipcMain.handle('default:status', (e) => {
 });
 ipcMain.handle('default:make', (e) => {
   if (!isShell(e)) return false;
-  // Register Solace as an http/https handler (HKCU), then open Windows' default-apps
+  // Register Drift as an http/https handler (HKCU), then open Windows' default-apps
   // page so the user can confirm — Windows won't let an app self-assign the default browser.
   try { app.setAsDefaultProtocolClient('http'); } catch (_) {}
   try { app.setAsDefaultProtocolClient('https'); } catch (_) {}
@@ -529,7 +544,7 @@ async function loadExtensionsFromSettings() {
     try { await loadExtensionPath(p); } catch (_) { /* skip broken/removed paths */ }
   }
 }
-// uBlock Origin ships with Solace and loads whenever it's the chosen ad-block engine.
+// uBlock Origin ships with Drift and loads whenever it's the chosen ad-block engine.
 // It is kept out of the user "Extensions" list and managed via Privacy → engine.
 const UBO_PATH = path.join(__dirname, 'extensions', 'uBlock0.chromium');
 let uboId = null;
@@ -622,7 +637,7 @@ ipcMain.handle('snip:save', (_e, dataUrl) => {
   try {
     const img = nativeImage.createFromDataURL(dataUrl);
     clipboard.writeImage(img);
-    const file = uniquePath(app.getPath('downloads'), `Solace-snip-${Date.now()}.png`);
+    const file = uniquePath(app.getPath('downloads'), `Drift-snip-${Date.now()}.png`);
     fs.writeFileSync(file, img.toPNG());
     const info = { id: ++dlSeq, filename: path.basename(file), url: 'snip://capture', savePath: file, total: img.toPNG().length, received: img.toPNG().length, state: 'completed', paused: false, startTime: Date.now(), endTime: Date.now(), snip: true };
     settings.downloads.unshift(info);
@@ -710,7 +725,7 @@ ipcMain.handle('privacy:set', (event, p) => {
   if (p && typeof p.adblock === 'boolean') settings.adblock = p.adblock;
   if (p && (p.adblockEngine === 'cream' || p.adblockEngine === 'ublock')) settings.adblockEngine = p.adblockEngine;
   if (p && typeof p.dnt === 'boolean') { dntEnabled = p.dnt; settings.dnt = p.dnt; }
-  // Solace's built-in blocker is active only when chosen as the engine.
+  // Drift's built-in blocker is active only when chosen as the engine.
   adblockEnabled = (settings.adblockEngine !== 'ublock') && (settings.adblock !== false);
   syncAdblockEngine();
   saveSettings();
@@ -793,6 +808,10 @@ ipcMain.handle('import:bookmarks', (e, id) => {
 app.on('web-contents-created', (event, contents) => {
   if (contents.getType() !== 'webview') return;
 
+  // Glass theme: give the webview a transparent base so a transparent page (the
+  // new tab) reveals the window's acrylic. Opaque sites paint their own background.
+  if (settings && settings.acrylic) { try { contents.setBackgroundColor('#00000000'); } catch (_) {} }
+
   // Route target=_blank / window.open into a new tab in the owning window.
   contents.setWindowOpenHandler(({ url }) => {
     const owner = BrowserWindow.getFocusedWindow() || mainWindow;
@@ -837,13 +856,13 @@ app.on('web-contents-created', (event, contents) => {
   });
 });
 
-// One-time: carry data over from the previous "Cream" name so renaming to "Solace"
-// doesn't orphan the user's settings, password vault, bookmarks, cookies, etc.
-function migrateFromCream() {
+// One-time: carry data over from a previous app name (Cream → Solace → Drift) so
+// renaming doesn't orphan the user's settings, password vault, bookmarks, cookies, etc.
+function migrateUserDataFrom(prevName) {
   try {
     const cur = app.getPath('userData');
-    const prev = path.join(path.dirname(cur), 'Cream');
-    const flag = path.join(cur, '.migratedFromCream');
+    const prev = path.join(path.dirname(cur), prevName);
+    const flag = path.join(cur, '.migratedFrom' + prevName);
     if (prev === cur || fs.existsSync(flag)) return;
     if (fs.existsSync(prev)) {
       fs.mkdirSync(cur, { recursive: true });
@@ -859,9 +878,11 @@ function migrateFromCream() {
     fs.writeFileSync(flag, new Date().toISOString());
   } catch (_) {}
 }
+// Most recent legacy name first, so its data wins when a file exists under both.
+function migrateLegacyUserData() { migrateUserDataFrom('Solace'); migrateUserDataFrom('Cream'); }
 
 app.whenReady().then(() => {
-  migrateFromCream();
+  migrateLegacyUserData();
   settings = loadSettings();
   // One-time: turn on the bundled uBlock Origin by default for everyone.
   if (!settings.uboDefaultApplied) { settings.adblockEngine = 'ublock'; settings.uboDefaultApplied = true; saveSettings(); }

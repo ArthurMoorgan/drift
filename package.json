@@ -1,7 +1,7 @@
 {
   "name": "cream-browser",
   "version": "1.0.1",
-  "description": "Solace — a polished, light & minimal liquid-glass web browser built on Electron.",
+  "description": "Drift — a polished, light & minimal liquid-glass web browser built on Electron.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -13,7 +13,7 @@
     "predist": "node scripts/bump-version.js && node scripts/fetch-ublock.js",
     "dist": "electron-builder --win"
   },
-  "author": "Solace",
+  "author": "Drift",
   "license": "MIT",
   "devDependencies": {
     "electron": "^42.4.1",
@@ -23,9 +23,9 @@
     "@anthropic-ai/sdk": "^0.104.2"
   },
   "build": {
-    "appId": "com.solace.app",
-    "productName": "Solace",
-    "copyright": "Copyright © 2026 Solace",
+    "appId": "com.drift.browser",
+    "productName": "Drift",
+    "copyright": "Copyright © 2026 Drift",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -60,10 +60,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Solace"
+      "shortcutName": "Drift"
     },
     "portable": {
-      "artifactName": "Solace-${version}-portable.exe"
+      "artifactName": "Drift-${version}-portable.exe"
     }
   }
 }

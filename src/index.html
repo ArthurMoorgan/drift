@@ -2,13 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: http:; connect-src 'self'; media-src 'self' blob: file:; child-src 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https: http:; connect-src 'self'; media-src 'self' blob: file:; child-src 'self';" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Solace</title>
-  <script>try{var d=document.documentElement;var t=localStorage.getItem('cream.theme');d.dataset.theme=['light','sepia','arctic','dark','midnight','slate','noir'].indexOf(t)>=0?t:'light';if(localStorage.getItem('cream.lite')==='1')d.classList.add('lite','no-anim');if(localStorage.getItem('cream.anim')==='0')d.classList.add('no-anim');if(new URLSearchParams(location.search).get('incognito')==='1')d.classList.add('incognito');}catch(e){document.documentElement.dataset.theme='light';}</script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
+  <title>Drift</title>
+  <script>try{var d=document.documentElement;var t=localStorage.getItem('cream.theme');d.dataset.theme=['light','sepia','arctic','dark','midnight','slate','noir'].indexOf(t)>=0?t:'light';if(localStorage.getItem('cream.lite')==='1')d.classList.add('lite','no-anim');if(localStorage.getItem('cream.minimal')==='1')d.classList.add('minimal');if(localStorage.getItem('cream.acrylic')==='1')d.classList.add('acrylic');if(localStorage.getItem('cream.anim')==='0')d.classList.add('no-anim');if(new URLSearchParams(location.search).get('incognito')==='1')d.classList.add('incognito');}catch(e){document.documentElement.dataset.theme='light';}</script>
   <link rel="stylesheet" href="chrome.css" />
 </head>
 <body>
@@ -19,12 +16,14 @@
       <button class="icon-btn no-drag sidebar-toggle" id="sidebarToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M9 4.5v15"/></svg>
       </button>
-      <div class="brand" title="Solace">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 3a9 9 0 0 0 0 18" fill="currentColor" opacity="0.55"/>
+      <div class="brand" title="Drift">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.3" opacity="0.45"/>
+          <path d="M5.5 15.5C9 17.5 12.5 14 16.5 7.5"/>
+          <path d="M12.7 7.6 17 7l-.6 4.2"/>
+          <circle cx="8" cy="13.4" r="1.7" fill="currentColor" stroke="none"/>
         </svg>
-        <span class="brand-name">Solace</span>
+        <span class="brand-name">Drift</span>
       </div>
       <span class="incognito-badge no-drag" aria-label="Private window">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11h18"/><path d="M6 11l1.4-4.3A2 2 0 0 1 9.3 5.3h5.4a2 2 0 0 1 1.9 1.4L18 11"/><circle cx="7.5" cy="15" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></svg>
@@ -65,11 +64,16 @@
         <button class="rail-btn" id="railHistory" title="History  (Ctrl+H)" aria-label="History">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
         </button>
-        <button class="rail-btn rail-ai" id="railAI" title="Solace AI" aria-label="Solace AI">
+        <button class="rail-btn rail-ai" id="railAI" title="Drift AI" aria-label="Drift AI">
           <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/></svg>
         </button>
         <button class="rail-btn" id="railMusic" title="Background music" aria-label="Background music">
           <svg viewBox="0 0 24 24"><path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>
+        </button>
+        <div class="rail-div"></div>
+        <div class="rail-apps" id="railApps"></div>
+        <button class="rail-btn rail-add" id="railAddApp" title="Pin a web app" aria-label="Pin a web app">
+          <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M12 9v6M9 12h6"/></svg>
         </button>
         <div class="rail-div"></div>
         <div class="rail-sites" id="railSites"></div>
@@ -81,6 +85,19 @@
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 2.6 14H2.5a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4 7.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 5.1V5a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 17 4.6l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
         </button>
       </nav>
+
+      <!-- ===== Vertical tabs rail (solid; shown only in vertical-tabs mode) ===== -->
+      <aside class="vbar" id="vbar" aria-label="Tabs">
+        <div class="vbar-nav" id="vbarNav"></div>
+        <div class="vbar-omni" id="vbarOmni"></div>
+        <div class="vbar-pins" id="vbarPins"></div>
+        <button class="vbar-newtab" id="vbarNewTab" title="New tab  (Ctrl+T)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New Tab</span>
+        </button>
+        <div class="vbar-tabs" id="vbarTabs"></div>
+        <div class="vbar-foot" id="vbarFoot"></div>
+      </aside>
 
       <div class="content-col">
       <!-- ===== Toolbar ===== -->
@@ -222,6 +239,31 @@
     <button class="btn" id="addSiteBtn">Add shortcut</button>
   </div>
 
+  <div class="zoom-pop addsite-pop" id="addAppPop" aria-hidden="true">
+    <div class="addsite-title">Pin a web app</div>
+    <input id="addAppName" type="text" placeholder="Name — e.g. Instagram" autocomplete="off" spellcheck="false" />
+    <input id="addAppUrl" type="text" placeholder="example.com" autocomplete="off" spellcheck="false" style="margin-top:8px" />
+    <button class="btn" id="addAppBtn">Pin app</button>
+  </div>
+
+  <!-- ===== Web-app slide-out panel ===== -->
+  <aside class="apppanel" id="appPanel" aria-hidden="true" aria-label="Web app">
+    <div class="apppanel-head">
+      <span class="apppanel-ico" id="appPanelIco" aria-hidden="true"></span>
+      <span class="apppanel-title" id="appPanelTitle">App</span>
+      <button class="icon-btn" id="appPanelReload" title="Reload" aria-label="Reload">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg>
+      </button>
+      <button class="icon-btn" id="appPanelTab" title="Open in a full tab" aria-label="Open in a full tab">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-8 8"/><path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>
+      </button>
+      <button class="icon-btn" id="appPanelClose" title="Close" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="apppanel-body" id="appPanelBody"></div>
+  </aside>
+
   <div class="snip-overlay" id="snipOverlay" aria-hidden="true">
     <div class="snip-hint" id="snipHint">Drag to capture a region · <b>Esc</b> to cancel</div>
     <div class="snip-box" id="snipBox"></div>
@@ -233,14 +275,14 @@
   <div class="settings-overlay" id="settingsOverlay" hidden aria-hidden="true">
     <div class="settings-shell" role="dialog" aria-label="Settings">
       <aside class="settings-nav">
-        <div class="settings-title"><span class="settings-logo">S</span> Settings</div>
+        <div class="settings-title"><span class="settings-logo"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.3" opacity="0.5"/><path d="M5.5 15.5C9 17.5 12.5 14 16.5 7.5"/><path d="M12.7 7.6 17 7l-.6 4.2"/><circle cx="8" cy="13.4" r="1.7" fill="currentColor" stroke="none"/></svg></span> Settings</div>
         <button class="snav active" data-sec="appearance">
           <svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22a10 10 0 1 1 0-20c5 0 9 3.5 9 8 0 3-2.5 4-4.5 4H14a2 2 0 0 0-1.4 3.4A2 2 0 0 1 12 22z"/></svg>
           Appearance
         </button>
         <button class="snav" data-sec="ai">
           <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/></svg>
-          Solace AI
+          Drift AI
         </button>
         <button class="snav" data-sec="browsing">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
