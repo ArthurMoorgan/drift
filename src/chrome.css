@@ -105,7 +105,7 @@ svg { width: 100%; height: 100%; }
   gap: 6px;
   height: var(--titlebar-h, 34px);
   min-height: var(--titlebar-h, 34px);
-  padding: 0 8px 0 12px;
+  padding: 0 8px 0 4px;          /* left pad aligns the toggle's centre with the 40px rail */
   flex: 0 0 var(--titlebar-h, 34px);
 }
 .no-drag, .titlebar button, .titlebar input, .tabstrip { -webkit-app-region: no-drag; }
@@ -145,11 +145,11 @@ svg { width: 100%; height: 100%; }
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 28px;
-  min-width: 52px;
+  height: 31px;
+  min-width: 56px;
   max-width: 220px;
-  padding: 0 9px;
-  border-radius: 5px 5px 0 0;
+  padding: 0 10px;
+  border-radius: 9px;            /* fully rounded — no sharp bottom "connecting" look */
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-2);
@@ -161,19 +161,8 @@ svg { width: 100%; height: 100%; }
 .tab:hover { background: var(--hover); color: var(--text-1); }
 .tab.active {
   background: var(--surface-strong);
-  border-color: var(--border-light);
   color: var(--text-1);
-  box-shadow: var(--shadow-sm), var(--inset-light);
-  backdrop-filter: blur(var(--blur));
-  -webkit-backdrop-filter: blur(var(--blur));
-}
-.tab.active::after {
-  content: "";
-  position: absolute;
-  left: 12px; right: 12px; bottom: 3px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--accent);
+  box-shadow: var(--shadow-sm);   /* clean lift — no underline bar, no hard outline */
 }
 
 .tab-favicon {
@@ -195,7 +184,7 @@ svg { width: 100%; height: 100%; }
 .tab-title {
   flex: 1 1 auto;
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -215,7 +204,11 @@ svg { width: 100%; height: 100%; }
 }
 .tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
 .tab-close:hover { background: rgba(160,60,40,0.14); color: #a23a28; }
-.tab-close svg { width: 12px; height: 12px; stroke-width: 2.4; }
+.tab-close svg { width: 13px; height: 13px; stroke-width: 2.8; }
+
+/* Native select dropdown — keep options readable in every theme (was white-on-white) */
+select, .field select { color: var(--text-1); }
+select option, select optgroup { background-color: var(--surface-solid); color: var(--text-1); }
 
 .new-tab-btn { width: 28px; height: 28px; flex: 0 0 auto; color: var(--text-2); }
 .new-tab-btn svg { width: 17px; height: 17px; }
