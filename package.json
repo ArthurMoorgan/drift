@@ -37,6 +37,7 @@
       "extensions/**/*",
       "package.json"
     ],
+    "afterPack": "./scripts/afterPack.js",
     "mac": {
       "target": ["dmg"],
       "category": "public.app-category.productivity",

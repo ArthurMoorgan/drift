@@ -25,10 +25,18 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Build macOS DMG
+      - name: Build macOS DMG (ad-hoc signed via afterPack hook)
         run: npx electron-builder --mac dmg --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Verify ad-hoc signature
+        run: |
+          APP=$(find dist -name "*.app" -maxdepth 4 | head -1)
+          echo "Verifying: $APP"
+          codesign -dv "$APP" 2>&1
+          codesign --verify --verbose "$APP" 2>&1
+          codesign -dv "$APP" 2>&1 | grep -i "adhoc" && echo "✓ Ad-hoc signature confirmed" || (echo "✗ Ad-hoc signature NOT found" && exit 1)
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
@@ -47,7 +55,7 @@ jobs:
           else
             gh release create v1.3.1 "$DMG" \
               --title "Drift 1.3.1 (macOS)" \
-              --notes "**Unsigned build** — on first launch, right-click the .dmg/app and choose **Open** to bypass Gatekeeper." \
+              --notes "**Ad-hoc signed** — on first launch, right-click the app and choose **Open** to bypass the unverified-developer Gatekeeper prompt. (Full notarization requires a paid Apple Developer ID.)" \
               --latest
           fi
         env:
